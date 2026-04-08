@@ -1,8 +1,10 @@
-# 👽 Alchemist: Token-Efficient Prompt Compiler
+# 👽 Alchemist
 
-## Overview
+**Makes your AI prompts shorter so they cost less and run faster.**
 
-Alchemist is a semantic prompt compiler that reduces input tokens by 15–48% by converting natural language prompts into a token-dense Machine Dialect. The tool strips grammatical fluff, replaces common instruction patterns with Unicode symbols, and minifies embedded data structures — all without losing meaning.
+When you talk to AI models like Claude or GPT, you pay for every word you send. Most of those words are filler — "I want you to", "please make sure", "it is important that" — stuff the AI doesn't actually need to understand you. Alchemist strips all that out and replaces common instructions with short symbols, cutting your prompt size by 15–48%.
+
+The AI still understands you perfectly. You just pay for fewer words.
 
 ```
 python alchemist.py --prompt "I want you to take this text and turn it into a JSON object with keys for name and age"
@@ -11,9 +13,9 @@ python alchemist.py --prompt "I want you to take this text and turn it into a JS
 Σ TEXT⇒{} name and age    (75% saved — 20 tokens → 5)
 ```
 
-## Examples
+## Before and After
 
-**Simple instruction — 75% saved (20 → 5 tokens):**
+**Simple instruction — 75% smaller:**
 
 > I want you to take this text and turn it into a JSON object with keys for name and age
 
@@ -21,7 +23,7 @@ python alchemist.py --prompt "I want you to take this text and turn it into a JS
 Σ TEXT⇒{} name and age
 ```
 
-**System prompt — 49% saved (92 → 47 tokens):**
+**Big system prompt — 49% smaller:**
 
 > You are an expert data analyst. I want you to summarize the following quarterly report and provide a detailed explanation of the trends. Format as a table with columns for metric, Q1 value, Q2 value, and percent change. Make sure to compare and contrast performance across regions. It is important that you think step by step about the underlying causes. Do not include any speculative projections. Please ensure that all numbers are sourced from the data provided. Keep it concise but do not sacrifice accuracy. Under no circumstances should you fabricate statistics.
 
@@ -33,7 +35,7 @@ numbers sourced from data provided.!brief but not sacrifice accuracy.!never shou
 fabricate statistics.
 ```
 
-**Coding task — 37% saved (71 → 45 tokens):**
+**Coding task — 37% smaller:**
 
 > Act as a senior Python developer. I need you to implement a thread-safe LRU cache with the following constraints: use only the \_\_new\_\_ method for singleton pattern, do not use metaclasses, the cache must handle concurrent access from multiple threads, generate a list of test cases covering edge cases, and return only the code with type annotations. Strict adherence to PEP 8. Think step by step about the data structure choice.
 
@@ -44,7 +46,7 @@ concurrent access from multiple threads, ⇒[] test cases covering edge cases, a
 type annotations.!strict to PEP 8. CoT about data structure choice.
 ```
 
-**Security review — 34% saved (59 → 39 tokens):**
+**Security review — 34% smaller:**
 
 > I would like you to review the following REST API design for security and performance issues. Think step by step about each endpoint. Make sure to check for SQL injection, XSS, CSRF, and rate limiting gaps. Do not deviate from OWASP Top 10 guidelines. Format as a table with columns for endpoint, risk level, issue description, and recommended fix.
 
@@ -55,63 +57,76 @@ Top 10 guidelines. ⇒table columns for endpoint, risk level, issue description,
 recommended fix.
 ```
 
-## Key Features
+## How It Works
 
-**Input Compression:** The tool delivers 15–48% token savings on prompts, with instruction-heavy system prompts hitting the top of that range. 100% semantic fidelity across all 32 stress tests.
+Alchemist runs your prompt through three steps:
 
-**Three-Stage Pipeline:**
-- Symbolic Mapping: 35+ patterns replaced with dense symbols (`summarize` → `Σ`, `format as a table` → `⇒table`, `you are an expert` → `@expert`)
-- Stop-Word Stripping: Grammatical filler removed with 80+ protected words that are never touched (negation, temporal, logic, modals)
-- Structural Minification: Inline JSON minified, lists collapsed, whitespace normalized
+1. **Symbol Swap** — Common phrases get replaced with short symbols. "Summarize" becomes `Σ`. "Format as a table" becomes `⇒table`. "You are an expert" becomes `@expert`. There are 35+ of these.
 
-**Semantic Safety Guards:** Negation-aware matching prevents "do not act as a proxy" from becoming `@role: proxy`. Code blocks (fenced, inline, colon-prefixed) are detected and left untouched. Literal Unicode symbols in user text are escaped to prevent collision with compiled symbols. A logic density heuristic auto-reduces compression intensity for reasoning-heavy prompts.
+2. **Filler Removal** — Words like "the", "a", "an", "is", "are", "been", "very" get stripped. These are grammar words that AI models don't need. Important words like "not", "before", "if", "must" are always kept.
 
-**Alchemist Prime:** An extended version that adds AST-aware code minification (72.5% savings on Python code blocks), cross-turn snippet deduplication via `[REF:BLK_001]` tokens, sentence-level constraint dedup across conversation history (35% savings), and a 6-token echo directive for experimental output compression.
+3. **Structure Cleanup** — JSON gets minified, numbered lists get compacted, extra whitespace gets removed.
 
-## Installation
+The AI still gets the same instructions. It just gets them in fewer words.
+
+## What Doesn't Get Touched
+
+Alchemist is careful about what it compresses. These are never changed:
+
+- **Code blocks** — Python, JavaScript, SQL, regex, anything in backticks
+- **Negation** — "not", "never", "don't", "cannot" always stay (removing these would flip the meaning)
+- **Logic words** — "if", "but", "unless", "before", "after", "then", "only"
+- **Technical terms** — everything specific to your domain stays exact
+
+If a prompt has lots of complex logic (if/then/else, multiple negations), Alchemist automatically dials back the compression to play it safe.
+
+## Alchemist Prime
+
+`alchemist_prime.py` is the advanced version. On top of everything above, it adds:
+
+- **Code Minifier** — Strips comments, docstrings, and blank lines from Python code blocks. 72.5% savings on code while keeping the code valid.
+- **Snippet Cache** — If you send the same code block twice in a conversation, the second one gets replaced with a tiny reference token instead.
+- **History Compression** — If you've told the AI "follow PEP 8" three times across multiple messages, it keeps only the latest one and deletes the duplicates.
+- **Echo Mode** — Adds a tiny 6-token instruction asking the AI to respond using the same short symbols. Sometimes saves 24–60% on the response too.
+
+## Install
 
 ```bash
 git clone https://github.com/fraser-svg/AlienTalk.git
 cd AlienTalk
 ```
 
-Python 3.9+, stdlib only. No dependencies required.
+That's it. Python 3.9+ and nothing else. No packages to install.
 
-Optional: `pip install tiktoken` for accurate BPE token counting. Falls back to whitespace split if unavailable.
+Optionally run `pip install tiktoken` for more accurate token counting, but it works fine without it.
 
 ## Usage
 
-Compile a prompt:
+Compress a prompt:
 
 ```bash
 python alchemist.py --prompt "You are an expert. Summarize this report and format as a table."
 ```
 
-Compile from file:
+Compress from a file:
 
 ```bash
 python alchemist.py --file prompt.txt
 ```
 
-Decompile back to natural language (lossy — reverses symbols only):
+Reverse it back to English (not perfect, but readable):
 
 ```bash
 python alchemist.py --prompt "Σ data ⇒table" --decompile
 ```
 
-Use Prime for code-heavy prompts and multi-turn compression:
+Use Prime for code-heavy stuff:
 
 ```bash
 python alchemist_prime.py --prompt "Act as a senior dev. Think step by step. Return only the code."
 ```
 
-Expand a compressed LLM response:
-
-```bash
-python alchemist_prime.py --expand "CoT: issue ← null ref. !fix add guard. ∴ done."
-```
-
-## Python API
+## Use It in Your Code
 
 ```python
 from alchemist import PromptCompiler
@@ -122,20 +137,11 @@ stats = compiler.estimate_savings("Your long prompt here...")
 print(f"Saved {stats['percentage_saved']}%")
 ```
 
-```python
-from alchemist_prime import AlchemistPrime
+## Make It Always-On
 
-prime = AlchemistPrime(echo=True)
-compiled = prime.compile("Act as a senior dev. Think step by step...")
-readable = prime.expand_response("CoT: step 1 → step 2. ∴ done.")
-compressed_history = prime.compress_history(messages)
-```
+Three ways to have every prompt automatically compressed.
 
-## Always-On Integration
-
-Three ways to make Alchemist run on every prompt automatically.
-
-**SDK Wrapper (Python):** Drop-in replacement for the Anthropic client. Every user message is compiled before it hits the API.
+**Python SDK Wrapper** — Swap one import line and every API call gets compressed automatically.
 
 ```python
 from integrations.sdk_wrapper import AlchemistClient
@@ -146,74 +152,75 @@ response = client.messages.create(
     max_tokens=1024,
     messages=[{"role": "user", "content": "Your verbose prompt here..."}],
 )
-# Prompt was auto-compressed. Check stats:
+# Prompt was auto-compressed before sending.
 print(client.last_stats)  # {'percentage_saved': 59.3, ...}
 ```
 
-**API Proxy:** Sits between any client and Anthropic's API. Works with any language or tool — just change the base URL.
+**API Proxy** — A local server that compresses prompts on the fly. Works with any programming language or tool. Just change one URL.
 
 ```bash
 # Start the proxy
 python integrations/proxy.py --verbose
 
-# Point your client at it
+# Tell your app to use it instead of the real API
 export ANTHROPIC_BASE_URL=http://127.0.0.1:8080
 
-# All API calls now auto-compressed — no code changes needed
+# Done. Every API call now goes through Alchemist first.
 ```
 
-**CLI Pipe:** Shell alias for quick use.
+**Shell Alias** — For quick terminal use.
 
 ```bash
-# Add to ~/.zshrc or ~/.bashrc
+# Add this line to your ~/.zshrc or ~/.bashrc
 export ALCHEMIST_HOME="/path/to/AlienTalk"
 alias alc='python3 $ALCHEMIST_HOME/alchemist.py --prompt'
 
-# Then:
+# Now just type:
 alc "You are an expert. Summarize this report. Format as a table."
 # → @expert. Σ this report. ⇒table.
 ```
 
-## Benchmarks
+## Real-World Results
 
-**Input Compression (Measured):** System prompts see 34–48% savings, coding instructions 30–40%, short questions 10–20%. Code blocks are protected and see 0–7%. Semantic fidelity is 100% across all tested prompts.
+Tested against Claude's API with real prompts. No fake numbers.
 
-**Code Minification (Measured):** The AST-aware Python minifier strips docstrings, comments, and blank lines for 72.5% savings on code blocks while preserving valid syntax.
+| Prompt Type | Tokens Saved |
+|:---|:---|
+| System prompts | 34–48% |
+| Coding instructions | 30–40% |
+| Short questions | 10–20% |
+| Code blocks | 0–7% (protected on purpose) |
+| Python code minification | 72.5% |
 
-**Live API Results (Claude Sonnet):** Tested with real API calls against Claude — no simulation. Best total pipe savings of 55.3% on code review tasks. Echo output compression ranged from 24–60% depending on prompt type.
+Live API test results (actual Claude Sonnet calls):
 
-| Prompt | Input Saved | Echo Output Saved | Total Pipe |
+| Prompt | Input Saved | Output Saved | Total |
 |:---|:---|:---|:---|
 | Code review | 7.0% | **59.9%** | **55.3%** |
 | Multi-constraint code | 23.0% | 36.4% | 35.7% |
 | Closures explanation | — | 27.4% | 26.3% |
 | Negation-heavy | 21.1% | 24.4% | 24.0% |
 
-## What's Preserved
+## Symbol Cheat Sheet
 
-Code blocks, inline code, SQL queries, regex patterns, negation words, temporal ordering (before/after/then), conditional logic (if/unless/but), modals (must/should/can), and all technical terminology remain unchanged. Only grammatical filler and recognized instruction patterns are compressed.
-
-## Symbol Reference
-
-| Symbol | Meaning | Symbol | Meaning |
+| Symbol | What It Means | Symbol | What It Means |
 |:---|:---|:---|:---|
-| `Σ` | Summarize | `!omit` | Do not include |
-| `Σ++` | Detailed explanation | `!strict` | Strict adherence |
-| `CoT` | Chain of thought | `!never` | Under no circumstances |
-| `⇒{}` | Convert to JSON | `!ensure` | Make sure to |
-| `⇒table` | Format as table | `@expert` | You are an expert |
-| `⇒[]` | Format as list | `@role:` | Act as a... |
-| `⇒code!` | Return only code | `⟺` | Compare and contrast |
-| `∴` | In conclusion | `↻` | Rewrite / refactor |
+| `Σ` | Summarize | `!omit` | Don't include |
+| `Σ++` | Explain in detail | `!strict` | Follow rules exactly |
+| `CoT` | Think step by step | `!never` | Under no circumstances |
+| `⇒{}` | Give me JSON | `!ensure` | Make sure to |
+| `⇒table` | Give me a table | `@expert` | You're an expert |
+| `⇒[]` | Give me a list | `@role:` | Act as... |
+| `⇒code!` | Just the code | `⟺` | Compare these |
+| `∴` | In conclusion | `↻` | Rewrite this |
 
-## Tests
+## Run the Tests
 
 ```bash
-python test_alchemist.py                                        # Base scenarios
-python tests/stress_test.py                                     # 32 semantic collapse tests
-python tests/test_prime.py                                      # Prime evaluation criteria
-python tests/test_prime_thorough.py                             # 125 deterministic tests
-python tests/competitive_benchmark.py                           # Competitive benchmark
+python test_alchemist.py                                        # Basic tests
+python tests/stress_test.py                                     # 32 edge case tests
+python tests/test_prime.py                                      # Prime feature tests
+python tests/test_prime_thorough.py                             # 125 thorough tests
 ANTHROPIC_API_KEY=sk-... python tests/test_prime_thorough.py --live  # Real API tests
 ```
 
