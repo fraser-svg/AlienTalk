@@ -11,6 +11,50 @@ python alchemist.py --prompt "I want you to take this text and turn it into a JS
 Σ TEXT⇒{} name and age    (75% saved — 20 tokens → 5)
 ```
 
+## Examples
+
+**Simple instruction — 75% saved (20 → 5 tokens):**
+
+> I want you to take this text and turn it into a JSON object with keys for name and age
+
+```
+Σ TEXT⇒{} name and age
+```
+
+**System prompt — 49% saved (92 → 47 tokens):**
+
+> You are an expert data analyst. I want you to summarize the following quarterly report and provide a detailed explanation of the trends. Format as a table with columns for metric, Q1 value, Q2 value, and percent change. Make sure to compare and contrast performance across regions. It is important that you think step by step about the underlying causes. Do not include any speculative projections. Please ensure that all numbers are sourced from the data provided. Keep it concise but do not sacrifice accuracy. Under no circumstances should you fabricate statistics.
+
+```
+@expert data analyst. Σ following quarterly report and Σ++ trends. ⇒table columns for
+metric, Q1 value, Q2 value, and percent change.!ensure ⟺ performance across regions.
+!ensure you CoT about underlying causes.!omit any speculative projections.!ensure all
+numbers sourced from data provided.!brief but not sacrifice accuracy.!never should you
+fabricate statistics.
+```
+
+**Coding task — 37% saved (71 → 45 tokens):**
+
+> Act as a senior Python developer. I need you to implement a thread-safe LRU cache with the following constraints: use only the \_\_new\_\_ method for singleton pattern, do not use metaclasses, the cache must handle concurrent access from multiple threads, generate a list of test cases covering edge cases, and return only the code with type annotations. Strict adherence to PEP 8. Think step by step about the data structure choice.
+
+```
+@role: senior Python developer. impl: thread-safe LRU cache following constraints: use
+only __new__ method for singleton pattern, not use metaclasses, cache must handle
+concurrent access from multiple threads, ⇒[] test cases covering edge cases, and ⇒code!
+type annotations.!strict to PEP 8. CoT about data structure choice.
+```
+
+**Security review — 34% saved (59 → 39 tokens):**
+
+> I would like you to review the following REST API design for security and performance issues. Think step by step about each endpoint. Make sure to check for SQL injection, XSS, CSRF, and rate limiting gaps. Do not deviate from OWASP Top 10 guidelines. Format as a table with columns for endpoint, risk level, issue description, and recommended fix.
+
+```
+review following REST API design for security and performance issues. CoT about endpoint.
+!ensure check for SQL injection, XSS, CSRF, and rate limiting gaps.!strict from OWASP
+Top 10 guidelines. ⇒table columns for endpoint, risk level, issue description, and
+recommended fix.
+```
+
 ## Key Features
 
 **Input Compression:** The tool delivers 15–48% token savings on prompts, with instruction-heavy system prompts hitting the top of that range. 100% semantic fidelity across all 32 stress tests.
