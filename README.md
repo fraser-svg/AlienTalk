@@ -102,19 +102,6 @@ compressed_history = prime.compress_history(messages)
 | Closures explanation | — | 27.4% | 26.3% |
 | Negation-heavy | 21.1% | 24.4% | 24.0% |
 
-## Relationship to Caveman
-
-[Caveman](https://github.com/JuliusBrussee/caveman) compresses LLM **output** tokens by injecting a system prompt that tells the model to respond tersely. Alchemist compresses **input** tokens algorithmically before the prompt reaches the model. They solve different sides of the same problem and stack cleanly — use Alchemist to compress what you send, Caveman to compress what comes back.
-
-| | Alchemist | Caveman |
-|:---|:---|:---|
-| **Compresses** | Input (your prompt) | Output (LLM response) |
-| **Method** | Algorithmic (regex pipeline) | Prompt engineering |
-| **Overhead** | 0 tokens | ~350 tokens/request |
-| **Deterministic** | Yes | No |
-| **API required** | No | Yes |
-| **Dependencies** | Python stdlib | Node.js + LLM API |
-
 ## What's Preserved
 
 Code blocks, inline code, SQL queries, regex patterns, negation words, temporal ordering (before/after/then), conditional logic (if/unless/but), modals (must/should/can), and all technical terminology remain unchanged. Only grammatical filler and recognized instruction patterns are compressed.
@@ -139,7 +126,7 @@ python test_alchemist.py                                        # Base scenarios
 python tests/stress_test.py                                     # 32 semantic collapse tests
 python tests/test_prime.py                                      # Prime evaluation criteria
 python tests/test_prime_thorough.py                             # 125 deterministic tests
-python tests/competitive_benchmark.py                           # vs Caveman benchmark
+python tests/competitive_benchmark.py                           # Competitive benchmark
 ANTHROPIC_API_KEY=sk-... python tests/test_prime_thorough.py --live  # Real API tests
 ```
 
