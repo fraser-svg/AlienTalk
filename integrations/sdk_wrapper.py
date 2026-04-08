@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Drop-in Anthropic SDK wrapper that auto-compiles prompts through Alchemist.
+"""Drop-in Anthropic SDK wrapper that auto-compiles prompts through AlienTalk.
 
 Usage:
     # Instead of:
     #   from anthropic import Anthropic
     # Use:
-    from integrations.sdk_wrapper import AlchemistClient
+    from integrations.sdk_wrapper import AlienTalkClient
 
-    client = AlchemistClient()  # same args as Anthropic()
+    client = AlienTalkClient()  # same args as Anthropic()
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1024,
@@ -20,7 +20,7 @@ Usage:
     print(client.last_stats)
 
 Configuration:
-    client = AlchemistClient(
+    client = AlienTalkClient(
         echo=True,          # Append echo directive (default: True)
         min_tokens=20,      # Skip compression for short prompts (default: 20)
         verbose=False,      # Print compression stats to stderr (default: False)
@@ -44,7 +44,7 @@ class _AlchemistMessages:
 
     def __init__(self, messages_api: anthropic.resources.Messages,
                  prime: AlchemistPrime, min_tokens: int, verbose: bool,
-                 parent: AlchemistClient) -> None:
+                 parent: AlienTalkClient) -> None:
         self._api = messages_api
         self._prime = prime
         self._min_tokens = min_tokens
@@ -109,7 +109,7 @@ class _AlchemistMessages:
         return getattr(self._api, name)
 
 
-class AlchemistClient:
+class AlienTalkClient:
     """Drop-in replacement for anthropic.Anthropic with auto-compression.
 
     All standard Anthropic client args are passed through. Additional args
