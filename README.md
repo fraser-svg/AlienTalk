@@ -131,6 +131,49 @@ readable = prime.expand_response("CoT: step 1 → step 2. ∴ done.")
 compressed_history = prime.compress_history(messages)
 ```
 
+## Always-On Integration
+
+Three ways to make Alchemist run on every prompt automatically.
+
+**SDK Wrapper (Python):** Drop-in replacement for the Anthropic client. Every user message is compiled before it hits the API.
+
+```python
+from integrations.sdk_wrapper import AlchemistClient
+
+client = AlchemistClient(verbose=True)
+response = client.messages.create(
+    model="claude-sonnet-4-20250514",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Your verbose prompt here..."}],
+)
+# Prompt was auto-compressed. Check stats:
+print(client.last_stats)  # {'percentage_saved': 59.3, ...}
+```
+
+**API Proxy:** Sits between any client and Anthropic's API. Works with any language or tool — just change the base URL.
+
+```bash
+# Start the proxy
+python integrations/proxy.py --verbose
+
+# Point your client at it
+export ANTHROPIC_BASE_URL=http://127.0.0.1:8080
+
+# All API calls now auto-compressed — no code changes needed
+```
+
+**CLI Pipe:** Shell alias for quick use.
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+export ALCHEMIST_HOME="/path/to/AlienTalk"
+alias alc='python3 $ALCHEMIST_HOME/alchemist.py --prompt'
+
+# Then:
+alc "You are an expert. Summarize this report. Format as a table."
+# → @expert. Σ this report. ⇒table.
+```
+
 ## Benchmarks
 
 **Input Compression (Measured):** System prompts see 34–48% savings, coding instructions 30–40%, short questions 10–20%. Code blocks are protected and see 0–7%. Semantic fidelity is 100% across all tested prompts.
