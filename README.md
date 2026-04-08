@@ -22,7 +22,9 @@ You're building something that calls Claude or GPT — a chatbot, an agent, a pi
 
 AlienTalk plugs into your code and compresses every prompt before it reaches the model. The AI still gets the same instructions. You just pay less.
 
-**This is not for interactive chat.** It's not a plugin. It's not something you install and type into. It's a library for developers building apps that call AI APIs at scale.
+AlienTalk works two ways:
+- **API users** — save money. Fewer input tokens = lower bill.
+- **Subscription users** (Claude MAX, Codex) — faster responses and extended usage caps. Shorter prompts mean faster time-to-first-token and more messages within rate limits.
 
 ## How It Works
 
@@ -88,6 +90,31 @@ python integrations/proxy.py --verbose
 export ANTHROPIC_BASE_URL=http://127.0.0.1:8080
 
 # That's it. Every API call now goes through AlienTalk.
+```
+
+### Terminal REPL (Subscription Users)
+
+Use AlienTalk with Claude MAX, Codex, or any CLI — no API key needed.
+
+```bash
+# Start a compressed chat session (uses claude by default)
+python integrations/repl.py
+
+# Use with Codex
+python integrations/repl.py --backend codex
+
+# Heavier compression with AlchemistPrime
+python integrations/repl.py --prime
+```
+
+You type normally. Every message is compressed before it reaches the LLM. Responses come back unmodified. Conversation continuity uses `--continue`, which resumes the last Claude session (parallel Claude sessions may interfere).
+
+### CLI Pipe (One-shot)
+
+Compress a single prompt and pipe it to any CLI tool.
+
+```bash
+echo "Your verbose prompt" | ./integrations/pipe.sh | claude
 ```
 
 ### Direct (Batch Processing)
@@ -161,6 +188,7 @@ compressed_history = prime.compress_history(conversation_messages)
 python test_alchemist.py                                         # Basic tests
 python tests/stress_test.py                                      # 32 safety tests
 python tests/test_prime.py                                       # Prime features
+python tests/test_repl.py                                        # REPL unit tests
 python tests/test_prime_thorough.py                              # 125 thorough tests
 ANTHROPIC_API_KEY=sk-... python tests/test_prime_thorough.py --live  # Real API tests
 ```
