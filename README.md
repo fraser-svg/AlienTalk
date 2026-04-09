@@ -44,7 +44,7 @@ Tokens: 20 → 5 (75% saved)
 It runs four steps on every prompt:
 
 1. **Spell Correction** — SymSpell-powered O(1) typo correction. 650 tech terms protected (kubectl, pytorch, terraform). Your misspelled prompts get fixed before compression, so "analize" becomes "analyze" not garbage.
-2. **Pattern Replacement** — 35+ common instruction phrases get swapped for short symbols (`summarize` → `Σ`, `format as a table` → `⇒table`, `you are an expert` → `@expert`)
+2. **Pattern Replacement** — 65+ dialect patterns get swapped for short symbols (`summarize` → `Σ`, `format as a table` → `⇒table`, `you are an expert` → `@expert`). Negation-aware: "do not act as an expert" won't get compressed.
 3. **Filler Removal** — Grammar words the AI doesn't need ("the", "a", "is", "been") get stripped. Important words like "not", "if", "before", "must" are never touched.
 4. **Structure Cleanup** — Embedded JSON gets minified, lists get compacted, whitespace gets trimmed, punctuation normalized.
 
@@ -154,11 +154,13 @@ print(f"Saved {stats['percentage_saved']}%")
 
 A Tauri v2 menu bar app that compresses prompts system-wide. Runs as a background daemon with a system tray icon.
 
-**What it does:** Global hotkey (Cmd+Shift+Enter) reads text from any focused input, compresses it through the Python engine, and writes it back. Context-aware: lighter compression in code editors, full compression in chat interfaces, blocks password managers and banking apps.
+**What it does:** Global hotkey (Cmd+Shift+Enter) reads text from any focused input, compresses it through a pure Rust engine, and writes it back. Context-aware: lighter compression in code editors, full compression in chat interfaces, blocks password managers and banking apps.
 
-**Status:** Architecture complete, pipeline tested (24 Rust unit tests). Python bridge is scaffolding, needs `tauri-plugin-python` wiring. See `daemon/` for source.
+**New in v0.3:** First-launch onboarding wizard (3-step flow: welcome, extension install, test compress). Diff view shows before/after for your first 50 compressions so you can build trust in what changed.
 
-**Prerequisites:** Rust 1.85+, Tauri CLI v2, Python 3.9+ dev headers, macOS 12+.
+**Status:** Pure Rust compression engine (no Python dependency). 112 tests (39 unit, 71 doc, 2 golden parity integration). See `daemon/` for source.
+
+**Prerequisites:** Rust 1.85+, Tauri CLI v2, macOS 12+.
 
 ```bash
 cd daemon && cargo build
@@ -170,7 +172,9 @@ MV3 extension that adds an "Optimize" button to claude.ai, chatgpt.com, and gemi
 
 **What it does:** One click (or Cmd+Shift+Enter) compresses your prompt in-place. Shows savings percentage with one-click undo. Communicates with the daemon via Chrome Native Messaging. Auto-reconnects if the daemon restarts.
 
-**Features:** Keyboard hotkey, per-element undo, site-adapted button positioning, accessible (ARIA labels, screen reader support), exponential backoff reconnection, human-readable error messages.
+**New in v0.3:** Diff view shows word-level before/after for your first 50 compressions, so you see exactly what changed before applying. After you've built trust, compression applies automatically.
+
+**Features:** Keyboard hotkey, per-element undo, diff view with trust threshold, site-adapted button positioning, accessible (ARIA labels, screen reader support), exponential backoff reconnection, human-readable error messages.
 
 **Status:** Content script with ProseMirror-safe write-back, SPA navigation handling, focus tracking. Needs daemon running for actual compression.
 
@@ -205,7 +209,7 @@ Tested with actual Claude Sonnet API calls. Not simulated.
 | Negation-heavy | 21.1% | Identical |
 | System prompt | 32.5% | Identical |
 
-180+ deterministic tests passing. 32 semantic safety tests passing. Zero meaning lost.
+180+ Python deterministic tests + 112 Rust engine tests passing. 32 semantic safety tests passing. Zero meaning lost.
 
 ## Advanced: AlienTalk Prime
 
@@ -237,7 +241,7 @@ python engine/tests/test_prime_thorough.py                              # 125 th
 ANTHROPIC_API_KEY=sk-... python engine/tests/test_prime_thorough.py --live  # Real API tests
 
 # Rust daemon
-cd daemon && cargo test                                                 # 24 unit tests
+cd daemon && cargo test                                                 # 112 tests (unit + golden parity)
 ```
 
 ## License

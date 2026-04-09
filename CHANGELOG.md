@@ -5,9 +5,9 @@ All notable changes to AlienTalk will be documented in this file.
 ## [0.3.0.0] - 2026-04-09
 
 ### Added
-- **Pure Rust compression engine** — Full 4-stage pipeline ported from Python to Rust. Eliminates Python/PyO3 dependency. 65+ dialect patterns with negation-aware matching, stop-word stripping with protected words, structural minification (JSON, lists), code block extraction, logic density heuristic. 39 unit tests + 2 golden parity integration tests (36/37 byte-identical with Python).
-- **Diff view** — First 50 compressions show a before/after diff panel so users can see exactly what changed. Word-level LCS algorithm with OOM guard (500 token limit). Shadow DOM isolation, keyboard shortcuts (Enter/Esc). Auto-applies after trust threshold reached.
-- **Onboarding wizard** — 3-step first-launch flow: Welcome, Extension Install, Test Compress. Tauri webview window with progress dots. State persisted in config. "Run Setup Again" menu item in system tray.
+- **Pure Rust compression engine** — Full 4-stage pipeline now runs in Rust. No more Python/PyO3 dependency. 65+ dialect patterns with negation-aware matching, stop-word stripping with protected words, structural minification (JSON, lists), code block extraction, logic density heuristic. 39 unit tests + 2 golden parity integration tests (36/37 byte-identical with Python).
+- **Diff view** — Your first 50 compressions show a before/after diff panel so you can see exactly what changed before applying. Word-level LCS algorithm with OOM guard (500 token limit). Shadow DOM isolation, keyboard shortcuts (Enter/Esc). After you've built trust, compression applies automatically.
+- **Onboarding wizard** — 3-step first-launch flow walks you through setup: Welcome, Extension Install, Test Compress. Tauri webview window with progress dots. State persisted in config. "Run Setup Again" available in system tray.
 - **Golden parity tests** — 37 fixtures generated from Python engine. Strict parity on 30 spell-independent fixtures. Non-fatal report for all 37.
 
 ### Changed

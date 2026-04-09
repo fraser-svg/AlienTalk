@@ -28,7 +28,7 @@
 **Why:** Extension needs the native messaging host manifest registered by daemon installer. Daemon's extension path needs the Chrome extension installed. Without sequencing, users get a broken first experience.
 **Priority:** P1
 **Added:** 2026-04-09 via /plan-eng-review (outside voice — codex)
-**Context:** Chrome Web Store review takes 1-3 days. Daemon can ship immediately via .dmg. Submit extension before daemon launch so it's live when users install. Sparkle auto-update adds another channel to coordinate.
+**Context:** Chrome Web Store review takes 1-3 days. Daemon can ship immediately via .dmg. Submit extension before daemon launch so it's live when users install. Daemon now uses pure Rust engine (no Python dependency), simplifying packaging. Sparkle auto-update adds another channel to coordinate.
 **Depends on:** Packaging + notarization pipeline complete.
 
 ### Per-target undo state
