@@ -1,34 +1,42 @@
 {
   "manifest_version": 3,
-  "name": "AlienTalk — Prompt Optimizer",
-  "version": "0.1.0",
-  "description": "Optimize every AI prompt automatically. Faster responses, better context efficiency.",
+  "name": "Sharp — Prompt Optimizer",
+  "version": "0.4.0",
+  "description": "Makes every AI prompt better. Sharpen for clarity, compress for speed.",
   "permissions": [
-    "nativeMessaging",
     "storage"
   ],
   "host_permissions": [
     "https://claude.ai/*",
     "https://chatgpt.com/*",
-    "https://gemini.google.com/*"
+    "https://gemini.google.com/*",
+    "https://www.perplexity.ai/*",
+    "https://poe.com/*",
+    "https://huggingface.co/chat/*",
+    "https://api.claude.ai/*",
+    "https://chatgpt.com/backend-api/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
       "matches": [
         "https://claude.ai/*",
         "https://chatgpt.com/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://www.perplexity.ai/*",
+        "https://poe.com/*",
+        "https://huggingface.co/chat/*"
       ],
-      "js": ["diff.js", "diff-ui.js", "content.js"],
-      "css": ["content.css"],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -40,13 +48,26 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["wasm/pkg/sharp_engine_bg.wasm", "wasm/pkg/sharp_engine.js"],
+      "matches": [
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://gemini.google.com/*",
+        "https://www.perplexity.ai/*",
+        "https://poe.com/*",
+        "https://huggingface.co/chat/*"
+      ]
+    }
+  ],
   "commands": {
-    "optimize": {
+    "sharpen": {
       "suggested_key": {
-        "default": "Ctrl+Shift+Enter",
-        "mac": "Command+Shift+Enter"
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
       },
-      "description": "Optimize current prompt"
+      "description": "Sharpen current prompt"
     }
   }
 }
