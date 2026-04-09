@@ -1,244 +1,73 @@
-# 👽 AlienTalk
+# Sharp
 
-**Make every AI interaction faster. One import line. No code changes.**
+**Two-stage prompt optimization for AI.**
 
-AlienTalk sits between your app and the AI model. Every prompt gets automatically compressed before it reaches the API, so the model starts responding sooner and you fit more into context windows and rate limits.
-
-```python
-# Before
-from anthropic import Anthropic
-client = Anthropic()
-
-# After: swap one line, faster responses
-from engine.integrations.sdk_wrapper import AlienTalkClient
-client = AlienTalkClient()
-
-# Everything else stays the same. Your app doesn't change.
-```
-
-## Who This Is For
-
-You're building something that calls Claude or GPT, a chatbot, an agent, a pipeline, a batch processor. You're sending thousands of prompts. You want faster responses and better throughput.
-
-AlienTalk plugs into your code and compresses every prompt before it reaches the model. The AI still gets the same instructions. Responses come back faster.
-
-AlienTalk works three ways:
-- **Python library** — Drop-in SDK wrapper, API proxy, CLI pipe, batch processing
-- **macOS daemon** (new) — System-wide prompt compression via menu bar app. Global hotkey compresses text in any app via Accessibility API.
-- **Chrome extension** (new) — One-click "Optimize" button on claude.ai, chatgpt.com, gemini.google.com
-
-## How It Works
-
-Your prompts are full of words the AI doesn't need. "I want you to", "please make sure", "it is important that" — all filler. AlienTalk strips it out and replaces common patterns with short tokens.
+Sharp makes your prompts better in two ways:
+1. **Sharpen** (Stage 1) — Removes filler, rewrites verbose phrases, fixes structure. You see the result and approve it.
+2. **Compress** (Stage 2) — Replaces patterns with symbols, strips articles, minifies JSON. Invisible to you — applied automatically to outbound API requests.
 
 ```
-Your app sends:
-  "I want you to take this text and turn it into a JSON object with keys for name and age"
+Input:  "Hey, I was wondering if you could help me out. In order to fix this bug,
+         I need you to take into consideration the error log and make changes to
+         the authentication module. Please make sure to be concise. Thank you!"
 
-AlienTalk sends to the API:
-  "Σ TEXT⇒{} name and age"
+Stage 1 (you see):  "Fix this bug. Consider the error log and change the authentication module. Be concise."
+Stage 2 (AI sees):  "Fix bug. Consider error log, change auth module. !brief"
 
-Tokens: 20 → 5 (75% saved)
+73 tokens → 14 tokens (81% saved)
 ```
 
-It runs four steps on every prompt:
+## Architecture
 
-1. **Spell Correction** — SymSpell-powered O(1) typo correction. 650 tech terms protected (kubectl, pytorch, terraform). Your misspelled prompts get fixed before compression, so "analize" becomes "analyze" not garbage.
-2. **Pattern Replacement** — 35+ common instruction phrases get swapped for short symbols (`summarize` → `Σ`, `format as a table` → `⇒table`, `you are an expert` → `@expert`)
-3. **Filler Removal** — Grammar words the AI doesn't need ("the", "a", "is", "been") get stripped. Important words like "not", "if", "before", "must" are never touched.
-4. **Structure Cleanup** — Embedded JSON gets minified, lists get compacted, whitespace gets trimmed, punctuation normalized.
+- `engine/` — Pure Rust crate. No platform dependencies. Compiles to native and WASM.
+- `desktop/` — macOS Tauri v2 menu bar daemon. Tray icon, onboarding wizard, system-wide hotkey.
+- `extension/` — Chrome MV3 extension. Self-contained with WASM engine. 6 site adapters, Stage 2 request interception.
 
-The AI still understands and responds correctly. Tested against Claude's API with real calls.
-
-## Install
+## Build & Test
 
 ```bash
-git clone https://github.com/fraser-svg/AlienTalk.git
-cd AlienTalk
+# Full workspace (105 tests)
+cargo test
+
+# Engine only (71 tests)
+cargo test -p sharp-engine
+
+# Desktop only (34 tests including golden parity)
+cargo test -p sharp-desktop
 ```
 
-Python 3.9+. No dependencies for core compression. Optional extras:
-- `pip install tiktoken` for more accurate token counting
-- `pip install symspellpy` for spell correction (recommended)
+Requires Rust 1.85+.
 
-## Integration
+## Engine API
 
-### Python SDK Wrapper (Easiest)
+```rust
+use sharp_engine::{sharpen, compress, process};
 
-Swap your import. Everything else stays the same.
+// Stage 1 only — human-readable improvement
+let result = sharpen("In order to fix this, take into consideration the logs");
+// result.sharpened_text = "To fix this, consider the logs"
 
-```python
-from engine.integrations.sdk_wrapper import AlienTalkClient
+// Stage 2 only — machine compression (skips prompts < 15 words)
+let result = compress("Explain step by step how databases work and summarize the findings");
+// result.compressed_text = "CoT databases work Σ findings"
 
-client = AlienTalkClient(verbose=True)
-
-response = client.messages.create(
-    model="claude-sonnet-4-20250514",
-    max_tokens=1024,
-    messages=[{"role": "user", "content": "Your normal prompt here..."}],
-)
-
-# [alientalk] 27→11 tokens (59.3% saved)   ← printed to stderr
-# Response is identical to what you'd get without AlienTalk.
+// Both stages
+let result = process("your verbose prompt here...");
+// result.sharpened_text — what the user sees
+// result.compressed_text — what the AI receives
+// result.score_before / score_after — quality scores (0-100)
+// result.total_saved — tokens saved
 ```
 
-### API Proxy (Any Language)
+## What Gets Protected
 
-Don't use Python? Run the proxy. It sits between your app and Anthropic's API. Change one URL. Works with JavaScript, Go, Rust, curl, anything.
+- Code blocks (fenced and inline)
+- Negation ("not", "never", "don't")
+- Logic operators ("if", "unless", "before", "then")
+- `[keep: ...]` blocks (user-marked content)
+- Domain-specific terms
 
-```bash
-# Terminal 1: start the proxy
-python engine/integrations/proxy.py --verbose
-
-# Terminal 2: tell your app to use it
-export ANTHROPIC_BASE_URL=http://127.0.0.1:8080
-
-# That's it. Every API call now goes through AlienTalk.
-```
-
-### Terminal REPL (Subscription Users)
-
-Use AlienTalk with Claude MAX, Codex, or any CLI, no API key needed.
-
-```bash
-# Start a compressed chat session (uses claude by default)
-python engine/integrations/repl.py
-
-# Use with Codex
-python engine/integrations/repl.py --backend codex
-
-# Heavier compression with AlchemistPrime
-python engine/integrations/repl.py --prime
-```
-
-You type normally. Every message is compressed before it reaches the LLM. Responses come back unmodified. Conversation continuity uses `--continue`, which resumes the last Claude session (parallel Claude sessions may interfere).
-
-### CLI Pipe (One-shot)
-
-Compress a single prompt and pipe it to any CLI tool.
-
-```bash
-echo "Your verbose prompt" | ./engine/integrations/pipe.sh | claude
-```
-
-### MCP Server (IDE Integration)
-
-Use AlienTalk directly from Claude Code, Cursor, or any MCP-compatible IDE.
-
-```bash
-# Start the MCP server
-python -m engine.integrations.mcp_server
-```
-
-Exposes two tools: `compile()` for prompt compression and `estimate_savings()` for checking how much a prompt would shrink. Add to your IDE's MCP config and compress prompts without leaving your editor.
-
-### Direct (Batch Processing)
-
-Compress prompts in bulk before sending them yourself.
-
-```python
-from engine.alchemist import PromptCompiler
-
-compiler = PromptCompiler()
-
-prompts = load_your_prompts()  # thousands of prompts
-compressed = [compiler.compile(p) for p in prompts]
-
-# Send compressed prompts to the API however you want.
-# Check savings:
-stats = compiler.estimate_savings(prompts[0])
-print(f"Saved {stats['percentage_saved']}%")
-```
-
-## macOS Daemon (Preview)
-
-A Tauri v2 menu bar app that compresses prompts system-wide. Runs as a background daemon with a system tray icon.
-
-**What it does:** Global hotkey (Cmd+Shift+Enter) reads text from any focused input, compresses it through the Python engine, and writes it back. Context-aware: lighter compression in code editors, full compression in chat interfaces, blocks password managers and banking apps.
-
-**Status:** Architecture complete, pipeline tested (24 Rust unit tests). Python bridge is scaffolding, needs `tauri-plugin-python` wiring. See `daemon/` for source.
-
-**Prerequisites:** Rust 1.85+, Tauri CLI v2, Python 3.9+ dev headers, macOS 12+.
-
-```bash
-cd daemon && cargo build
-```
-
-## Chrome Extension (Preview)
-
-MV3 extension that adds an "Optimize" button to claude.ai, chatgpt.com, and gemini.google.com.
-
-**What it does:** One click (or Cmd+Shift+Enter) compresses your prompt in-place. Shows savings percentage with one-click undo. Communicates with the daemon via Chrome Native Messaging. Auto-reconnects if the daemon restarts.
-
-**Features:** Keyboard hotkey, per-element undo, site-adapted button positioning, accessible (ARIA labels, screen reader support), exponential backoff reconnection, human-readable error messages.
-
-**Status:** Content script with ProseMirror-safe write-back, SPA navigation handling, focus tracking. Needs daemon running for actual compression.
-
-Load unpacked from `extension/` in `chrome://extensions`.
-
-## What Gets Compressed
-
-| Prompt Type | Savings |
-|:---|:---|
-| System prompts (instruction-heavy) | 34–48% |
-| Coding instructions | 30–40% |
-| Short questions | 10–20% |
-| Code blocks | 0–7% (protected) |
-
-## What Never Gets Compressed
-
-- **Code** — anything in backticks, fences, or after `code:` patterns
-- **Negation** — "not", "never", "don't" (removing these flips the meaning)
-- **Logic** — "if", "but", "unless", "before", "after", "then", "only"
-- **Technical terms** — domain-specific words stay exact
-
-If a prompt has lots of complex logic, AlienTalk automatically reduces compression to play it safe.
-
-## Real API Results
-
-Tested with actual Claude Sonnet API calls. Not simulated.
-
-| Prompt | Input Saved | Response Quality |
-|:---|:---|:---|
-| Code review | 7.0% | Identical |
-| Multi-constraint code | 23.0% | Identical |
-| Negation-heavy | 21.1% | Identical |
-| System prompt | 32.5% | Identical |
-
-180+ deterministic tests passing. 32 semantic safety tests passing. Zero meaning lost.
-
-## Advanced: AlienTalk Prime
-
-`alchemist_prime.py` adds extra compression for heavier workloads:
-
-- **Code Minifier** — Strips comments, docstrings, blank lines from Python code in your prompts. 72.5% savings on code blocks.
-- **Snippet Cache** — Same code block sent twice in a conversation? Second one becomes a tiny reference token.
-- **History Compression** — Repeated constraints across messages get deduped. "Follow PEP 8" said three times becomes one.
-
-```python
-from engine.alchemist_prime import AlchemistPrime
-
-prime = AlchemistPrime()
-compressed = prime.compile("Your prompt with code blocks...")
-compressed_history = prime.compress_history(conversation_messages)
-```
-
-## Tests
-
-```bash
-# Python engine (run from engine/ directory)
-cd engine
-python test_alchemist.py                                                # Basic tests
-python -m pytest tests/test_spell.py -v                                 # 71 spell correction tests
-python engine/tests/stress_test.py                                      # 32 safety tests
-python engine/tests/test_prime.py                                       # Prime features
-python engine/tests/test_repl.py                                        # REPL unit tests
-python engine/tests/test_prime_thorough.py                              # 125 thorough tests
-ANTHROPIC_API_KEY=sk-... python engine/tests/test_prime_thorough.py --live  # Real API tests
-
-# Rust daemon
-cd daemon && cargo test                                                 # 24 unit tests
-```
+High logic-density prompts automatically get lighter compression.
 
 ## License
 

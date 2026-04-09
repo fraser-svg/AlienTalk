@@ -1,29 +1,40 @@
-# AlienTalk
+# Sharp
 
-Semantic prompt compression for AI. Python library + macOS daemon + Chrome extension.
+Two-stage prompt optimization for AI. Rust engine + macOS desktop + Chrome extension.
 
 ## Project structure
 
-- `engine/` — Python compression engine (PromptCompiler, AlchemistPrime, integrations)
-- `daemon/` — Rust/Tauri v2 macOS menu bar daemon (pure Rust engine, 67 tests)
-- `extension/` — Chrome MV3 extension (native messaging, ProseMirror write-back)
+- `engine/` — Pure Rust engine crate (`sharp-engine`): sharpen() + compress() pipeline, 71 tests
+- `desktop/` — Rust/Tauri v2 macOS menu bar daemon (`sharp-desktop`), depends on engine crate
+- `extension/` — Chrome MV3 extension (WASM engine, self-contained)
 
 ## Build & test
 
 ```bash
-# Python engine (run from engine/ directory)
-cd engine && python test_alchemist.py
-python -m pytest tests/test_spell.py -v
+# Full workspace
+cargo test
 
-# Rust daemon
-cd daemon && cargo test
+# Engine only (71 tests)
+cargo test -p sharp-engine
 
-# MCP server
-python -m engine.integrations.mcp_server
+# Desktop only (32 unit + 2 golden parity)
+cargo test -p sharp-desktop
 
 # Extension: load unpacked from extension/ in chrome://extensions
-# Hotkey: Cmd+Shift+Enter (macOS) / Ctrl+Shift+Enter
+# Hotkey: Cmd+Shift+S (macOS)
 ```
+
+## Architecture
+
+Two-stage pipeline:
+- **Stage 1 (Sharpen)**: Human-readable improvement — filler removal, verbose→concise rewriting, cleanup. User sees and approves this.
+- **Stage 2 (Compress)**: Machine-facing compression — symbolic mapping, stop-word stripping, JSON minification. Invisible to user, applied to outbound API requests.
+
+Public API:
+- `sharpen(text)` — Stage 1 only
+- `compress(text)` — Stage 2 only (skips prompts < 15 words)
+- `process(text)` — Both stages combined
+- `compile(text)` — Legacy compat (cleanup + compress, no short-prompt guard)
 
 ## Skill routing
 
