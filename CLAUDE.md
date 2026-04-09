@@ -5,7 +5,7 @@ Semantic prompt compression for AI. Python library + macOS daemon + Chrome exten
 ## Project structure
 
 - `engine/` — Python compression engine (PromptCompiler, AlchemistPrime, integrations)
-- `daemon/` — Rust/Tauri v2 macOS menu bar daemon (24 tests, bridge is scaffolding)
+- `daemon/` — Rust/Tauri v2 macOS menu bar daemon (pure Rust engine, 67 tests)
 - `extension/` — Chrome MV3 extension (native messaging, ProseMirror write-back)
 
 ## Build & test

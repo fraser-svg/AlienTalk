@@ -2,6 +2,33 @@
 
 All notable changes to AlienTalk will be documented in this file.
 
+## [0.3.0.0] - 2026-04-09
+
+### Added
+- **Pure Rust compression engine** — Full 4-stage pipeline ported from Python to Rust. Eliminates Python/PyO3 dependency. 65+ dialect patterns with negation-aware matching, stop-word stripping with protected words, structural minification (JSON, lists), code block extraction, logic density heuristic. 39 unit tests + 2 golden parity integration tests (36/37 byte-identical with Python).
+- **Diff view** — First 50 compressions show a before/after diff panel so users can see exactly what changed. Word-level LCS algorithm with OOM guard (500 token limit). Shadow DOM isolation, keyboard shortcuts (Enter/Esc). Auto-applies after trust threshold reached.
+- **Onboarding wizard** — 3-step first-launch flow: Welcome, Extension Install, Test Compress. Tauri webview window with progress dots. State persisted in config. "Run Setup Again" menu item in system tray.
+- **Golden parity tests** — 37 fixtures generated from Python engine. Strict parity on 30 spell-independent fixtures. Non-fatal report for all 37.
+
+### Changed
+- Daemon bridge rewritten: removed all Python/PyO3 references, now calls pure Rust engine directly.
+- Extension manifest adds `storage` permission for compression count tracking.
+- CSP tightened: removed `unsafe-inline` from script-src, moved all event handlers to addEventListener.
+- Extension error messages sanitized (no raw daemon error codes shown to users).
+
+### Fixed
+- SPACE_BEFORE_PUNCT regex no longer eats newlines before hyphens (was breaking bullet lists).
+- Numbered list regex anchored to line start (no longer matches "version 2. foo" mid-sentence).
+- JSON minifier bracket depth tracking fixed for mixed nested objects/arrays.
+- Diff view `isCompressing` race condition fixed (stays locked until diff dismissed).
+- `loadDiffCss()` undefined function call replaced with inline CSS constant.
+- Extension fingerprinting via `web_accessible_resources` removed.
+
+### Performance
+- `has_negation_before` zero-allocation (reverse iterator instead of Vec collect).
+- Dialect matching short-circuits clone for neg-sensitive entries when no match.
+- Avoids `into_owned()` on `Cow::Borrowed` (skips heap allocation when no replacement).
+
 ## [0.2.1.0] - 2026-04-09
 
 ### Added
