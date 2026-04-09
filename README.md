@@ -41,11 +41,12 @@ AlienTalk sends to the API:
 Tokens: 20 → 5 (75% saved)
 ```
 
-It runs three steps on every prompt:
+It runs four steps on every prompt:
 
-1. **Pattern Replacement** — 35+ common instruction phrases get swapped for short symbols (`summarize` → `Σ`, `format as a table` → `⇒table`, `you are an expert` → `@expert`)
-2. **Filler Removal** — Grammar words the AI doesn't need ("the", "a", "is", "been") get stripped. Important words like "not", "if", "before", "must" are never touched.
-3. **Structure Cleanup** — Embedded JSON gets minified, lists get compacted, whitespace gets trimmed.
+1. **Spell Correction** — SymSpell-powered O(1) typo correction. 650 tech terms protected (kubectl, pytorch, terraform). Your misspelled prompts get fixed before compression, so "analize" becomes "analyze" not garbage.
+2. **Pattern Replacement** — 35+ common instruction phrases get swapped for short symbols (`summarize` → `Σ`, `format as a table` → `⇒table`, `you are an expert` → `@expert`)
+3. **Filler Removal** — Grammar words the AI doesn't need ("the", "a", "is", "been") get stripped. Important words like "not", "if", "before", "must" are never touched.
+4. **Structure Cleanup** — Embedded JSON gets minified, lists get compacted, whitespace gets trimmed, punctuation normalized.
 
 The AI still understands and responds correctly. Tested against Claude's API with real calls.
 
@@ -56,7 +57,9 @@ git clone https://github.com/fraser-svg/AlienTalk.git
 cd AlienTalk
 ```
 
-Python 3.9+. No dependencies. Optional `pip install tiktoken` for more accurate token counting.
+Python 3.9+. No dependencies for core compression. Optional extras:
+- `pip install tiktoken` for more accurate token counting
+- `pip install symspellpy` for spell correction (recommended)
 
 ## Integration
 
@@ -118,6 +121,17 @@ Compress a single prompt and pipe it to any CLI tool.
 echo "Your verbose prompt" | ./engine/integrations/pipe.sh | claude
 ```
 
+### MCP Server (IDE Integration)
+
+Use AlienTalk directly from Claude Code, Cursor, or any MCP-compatible IDE.
+
+```bash
+# Start the MCP server
+python -m engine.integrations.mcp_server
+```
+
+Exposes two tools: `compile()` for prompt compression and `estimate_savings()` for checking how much a prompt would shrink. Add to your IDE's MCP config and compress prompts without leaving your editor.
+
 ### Direct (Batch Processing)
 
 Compress prompts in bulk before sending them yourself.
@@ -154,7 +168,9 @@ cd daemon && cargo build
 
 MV3 extension that adds an "Optimize" button to claude.ai, chatgpt.com, and gemini.google.com.
 
-**What it does:** One click compresses your prompt in-place. Shows savings percentage. Communicates with the daemon via Chrome Native Messaging.
+**What it does:** One click (or Cmd+Shift+Enter) compresses your prompt in-place. Shows savings percentage with one-click undo. Communicates with the daemon via Chrome Native Messaging. Auto-reconnects if the daemon restarts.
+
+**Features:** Keyboard hotkey, per-element undo, site-adapted button positioning, accessible (ARIA labels, screen reader support), exponential backoff reconnection, human-readable error messages.
 
 **Status:** Content script with ProseMirror-safe write-back, SPA navigation handling, focus tracking. Needs daemon running for actual compression.
 
@@ -189,7 +205,7 @@ Tested with actual Claude Sonnet API calls. Not simulated.
 | Negation-heavy | 21.1% | Identical |
 | System prompt | 32.5% | Identical |
 
-125 deterministic tests passing. 32 semantic safety tests passing. Zero meaning lost.
+180+ deterministic tests passing. 32 semantic safety tests passing. Zero meaning lost.
 
 ## Advanced: AlienTalk Prime
 
@@ -210,8 +226,10 @@ compressed_history = prime.compress_history(conversation_messages)
 ## Tests
 
 ```bash
-# Python engine
-python engine/test_alchemist.py                                         # Basic tests
+# Python engine (run from engine/ directory)
+cd engine
+python test_alchemist.py                                                # Basic tests
+python -m pytest tests/test_spell.py -v                                 # 71 spell correction tests
 python engine/tests/stress_test.py                                      # 32 safety tests
 python engine/tests/test_prime.py                                       # Prime features
 python engine/tests/test_repl.py                                        # REPL unit tests
