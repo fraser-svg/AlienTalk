@@ -38,5 +38,14 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "commands": {
+    "optimize": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Enter",
+        "mac": "Command+Shift+Enter"
+      },
+      "description": "Optimize current prompt"
+    }
   }
 }

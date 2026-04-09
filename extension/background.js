@@ -13,10 +13,22 @@ let nativePort = null;
 /** Pending responses keyed by request ID. */
 const pendingRequests = new Map();
 
+/** Reconnection state. */
+let reconnectTimer = null;
+let reconnectDelay = 1000;
+const MAX_RECONNECT_DELAY = 30000;
+
 /** Connect to the native messaging host. */
 function connectNative() {
   try {
     nativePort = chrome.runtime.connectNative(NATIVE_HOST);
+
+    // Reset reconnect state on successful connect
+    reconnectDelay = 1000;
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
 
     nativePort.onMessage.addListener((response) => {
       const { request_id, compressed, savings_pct, error } = response;
@@ -37,11 +49,27 @@ function connectNative() {
         pending.resolve({ error: "daemon_disconnected" });
         pendingRequests.delete(id);
       }
+
+      // Schedule reconnection with exponential backoff
+      scheduleReconnect();
     });
   } catch (e) {
     console.error("[AlienTalk] Failed to connect native host:", e);
     nativePort = null;
+    scheduleReconnect();
   }
+}
+
+/** Schedule reconnection with exponential backoff. */
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  const delay = reconnectDelay;
+  reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    console.log(`[AlienTalk] Reconnecting (delay: ${delay}ms)...`);
+    connectNative();
+  }, delay);
 }
 
 /** Monotonic request ID counter. */
@@ -125,5 +153,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "get_stats") {
     requestStats().then(sendResponse);
     return true;
+  }
+  if (message.action === "get_connection_status") {
+    sendResponse({ connected: nativePort !== null });
+    return false;
+  }
+});
+
+// Listen for keyboard shortcut (Cmd+Shift+Enter / Ctrl+Shift+Enter)
+chrome.commands.onCommand.addListener((command) => {
+  if (command === "optimize") {
+    // Forward hotkey to the active tab's content script
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.tabs.sendMessage(tabs[0].id, { action: "hotkey_optimize" });
+      }
+    });
   }
 });
