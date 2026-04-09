@@ -2,7 +2,7 @@
 """The Alchemist — Semantic Prompt Compiler.
 
 Compiles natural language prompts into token-dense Machine Dialect.
-Three-stage pipeline: symbolic mapping → stop-word stripping → structural minification.
+Four-stage pipeline: spell correction → symbolic mapping → stop-word stripping → structural minification.
 
 v2: Hardened against semantic collapse via protected words, code block
 detection, lossless symbol escaping, negation-aware matching, and
@@ -296,6 +296,13 @@ class PromptCompiler:
         self._multispace_re = re.compile(r'[ \t]{2,}')
         self._multiline_re = re.compile(r'\n{3,}')
 
+        # Punctuation normalization (note: dots excluded from repeated_punct
+        # because ... is a valid ellipsis that must be preserved)
+        self._repeated_punct_re = re.compile(r'([!?])\1{2,}')    # 3+ repeated !/?  → 1
+        self._repeated_double_re = re.compile(r'([!?])\1')        # !! or ?? → single
+        self._ellipsis_re = re.compile(r'\.{4,}')                 # 4+ dots → ...
+        self._space_before_punct_re = re.compile(r'\s+([,.\-:;!?])')
+
         # Decompile patterns (longest symbol first)
         sorted_symbols = sorted(INVERSE_DIALECT_MAP.keys(), key=len, reverse=True)
         self._decompile_patterns: list[tuple[re.Pattern[str], str]] = [
@@ -366,6 +373,56 @@ class PromptCompiler:
         for sym in _DIALECT_SYMBOLS:
             text = text.replace(f"{_ESCAPE_PREFIX}{sym}{_ESCAPE_SUFFIX}", sym)
         return text
+
+    # ---- Pre-compression normalization ----
+
+    def _normalize(self, text: str) -> str:
+        """Normalize text before compression.
+
+        Runs after spell correction, before symbolic mapping.
+        - Trim whitespace per line
+        - Fix sentence-initial capitalization
+        - Normalize repeated punctuation (!!!, ???, ....)
+        - Remove redundant symbols
+        - Collapse multiple spaces
+        """
+        # Trim whitespace per line
+        lines = [line.strip() for line in text.splitlines()]
+
+        # Sentence-initial caps: capitalize first letter after sentence-ending punct
+        normalized_lines: list[str] = []
+        for line in lines:
+            if not line:
+                normalized_lines.append(line)
+                continue
+            # Capitalize first character of line if it's a letter
+            if line[0].islower():
+                line = line[0].upper() + line[1:]
+            # Capitalize after sentence-ending punctuation within the line
+            line = re.sub(
+                r'([.!?])\s+([a-z])',
+                lambda m: m.group(1) + ' ' + m.group(2).upper(),
+                line,
+            )
+            normalized_lines.append(line)
+
+        text = '\n'.join(normalized_lines)
+
+        # Normalize repeated punctuation
+        text = self._ellipsis_re.sub('...', text)       # 4+ dots → ...
+        text = self._repeated_punct_re.sub(r'\1', text)  # 3+ same → 1
+        text = self._repeated_double_re.sub(r'\1', text) # !! → !, ?? → ?
+
+        # Remove space before punctuation
+        text = self._space_before_punct_re.sub(r'\1', text)
+
+        # Collapse multiple spaces
+        text = self._multispace_re.sub(' ', text)
+
+        # Collapse excessive blank lines
+        text = self._multiline_re.sub('\n\n', text)
+
+        return text.strip()
 
     # ---- Stage 1: Symbolic Mapping ----
 
@@ -470,6 +527,23 @@ class PromptCompiler:
         text, inline_blocks = self._detect_inline_code(text)
         all_blocks = {**fenced_blocks, **inline_blocks}
 
+        # Stage 0: Spell correction (before dialect mapping to avoid
+        # corrupting multi-word phrase matches in DIALECT_MAP)
+        try:
+            from engine.spell import correct_spelling
+            text = correct_spelling(text)
+        except ImportError:
+            try:
+                from spell import correct_spelling
+                text = correct_spelling(text)
+            except Exception:
+                pass  # SymSpell not available or failed, skip spell correction
+        except Exception:
+            pass  # Spell correction failed, continue without it
+
+        # Stage 0b: Normalize (after spell correction, before compression)
+        text = self._normalize(text)
+
         # Compute logic density → adjust compression intensity
         logic_density = _compute_logic_density(prompt)
         # intensity: 1.0 for normal prompts, 0.5 for logic-heavy, 0.0 for ultra-logic
@@ -478,7 +552,7 @@ class PromptCompiler:
         else:
             intensity = 1.0
 
-        # Three-stage pipeline
+        # Three-stage pipeline (after spell correction + normalization)
         text = self._stage_symbolic(text, intensity)
         text = self._stage_stopwords(text, intensity)
         text = self._stage_structural(text, intensity)
