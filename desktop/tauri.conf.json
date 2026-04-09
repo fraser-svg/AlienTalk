@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicoverbruggen/tauri-json-schema/main/schema.json",
-  "productName": "AlienTalk",
+  "productName": "Sharp",
   "version": "0.1.0",
-  "identifier": "com.alientalk.daemon",
+  "identifier": "com.sharp.desktop",
   "build": {
     "frontendDist": "ui",
     "devUrl": "http://localhost:1420"

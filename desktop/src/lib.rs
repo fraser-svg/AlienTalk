@@ -1,3 +1,4 @@
-//! AlienTalk daemon library — exposes engine for integration tests.
+//! Sharp desktop service — exposes engine for integration tests.
 
-pub mod engine;
+// Re-export the engine from the sharp-engine crate
+pub use sharp_engine as engine;

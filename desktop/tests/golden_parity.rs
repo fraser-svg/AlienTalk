@@ -80,7 +80,7 @@ fn golden_parity_spell_independent() {
         if !SPELL_INDEPENDENT_FIXTURES.contains(&fixture.name.as_str()) {
             continue;
         }
-        let result = alientalk_daemon::engine::compile(&fixture.input);
+        let result = sharp_desktop::engine::compile(&fixture.input);
         assert_eq!(
             result, fixture.expected,
             "\n--- GOLDEN PARITY FAILURE: {} ---\nInput:    {:?}\nExpected: {:?}\nGot:      {:?}\n",
@@ -97,7 +97,7 @@ fn golden_parity_all_report() {
     let mut mismatches = Vec::new();
 
     for fixture in &fixtures {
-        let result = alientalk_daemon::engine::compile(&fixture.input);
+        let result = sharp_desktop::engine::compile(&fixture.input);
         if result != fixture.expected {
             mismatches.push(format!(
                 "  {} — expected {:?}, got {:?}",

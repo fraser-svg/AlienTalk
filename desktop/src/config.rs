@@ -1,6 +1,6 @@
 //! Settings manager — persists user configuration.
 //!
-//! Stored at ~/.alientalk/config.json.
+//! Stored at ~/.sharp/config.json.
 
 use std::path::PathBuf;
 
@@ -49,7 +49,7 @@ impl Config {
     fn path() -> PathBuf {
         dirs::home_dir()
             .expect("home dir")
-            .join(".alientalk")
+            .join(".sharp")
             .join("config.json")
     }
 

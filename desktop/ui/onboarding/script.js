@@ -1,4 +1,4 @@
-// AlienTalk Onboarding — step navigation + Tauri invoke calls
+// Sharp Onboarding — step navigation + Tauri invoke calls
 
 let currentStep = 1;
 const totalSteps = 3;
@@ -49,7 +49,7 @@ async function testCompress() {
     resultText.textContent = result;
     resultArea.classList.remove("hidden");
   } catch (err) {
-    console.error("[AlienTalk] test_compress error:", err);
+    console.error("[Sharp] test_compress error:", err);
     resultText.textContent = "Compression failed. Check that the daemon is running.";
     resultArea.classList.remove("hidden");
   }

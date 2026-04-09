@@ -3,7 +3,7 @@
 //! States: NotStarted → Welcome → ExtensionInstall → TestCompress → Complete
 //!         (any state can transition to Skipped)
 //!
-//! Persisted in ~/.alientalk/config.json via the `onboarding_state` field.
+//! Persisted in ~/.sharp/config.json via the `onboarding_state` field.
 
 use serde::{Deserialize, Serialize};
 
@@ -96,7 +96,7 @@ pub fn test_compress(text: String) -> String {
     if text.len() > MAX_TEST_INPUT {
         return text;
     }
-    crate::engine::compile(&text)
+    sharp_engine::compile(&text)
 }
 
 /// Open the onboarding webview window.
@@ -116,7 +116,7 @@ pub fn open_onboarding_window(app: &tauri::AppHandle) {
         "onboarding",
         tauri::WebviewUrl::App("onboarding/index.html".into()),
     )
-    .title("AlienTalk Setup")
+    .title("Sharp Setup")
     .inner_size(560.0, 520.0)
     .resizable(false)
     .center()

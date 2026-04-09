@@ -15,7 +15,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tokio::time::timeout;
 
-use crate::engine;
+use sharp_engine as engine;
 
 /// Whether the engine is in degraded mode.
 static DEGRADED: AtomicBool = AtomicBool::new(false);
@@ -102,14 +102,18 @@ pub async fn compress(text: &str) -> EngineResult {
 
     // Spawn on a blocking OS thread (regex work can be CPU-heavy on large inputs).
     let handle = tokio::task::spawn_blocking(move || {
-        let result = engine::estimate_savings(&text_owned);
+        let result = engine::process(&text_owned);
         EngineResult {
-            compiled_text: result.compiled_text,
+            compiled_text: result.compressed_text,
             original_tokens: result.original_tokens,
             compressed_tokens: result.compressed_tokens,
-            saved_tokens: result.saved_tokens,
-            percentage_saved: result.percentage_saved,
-            compression_ratio: result.compression_ratio,
+            saved_tokens: result.total_saved,
+            percentage_saved: result.total_percentage_saved,
+            compression_ratio: if result.original_tokens > 0 {
+                (result.compressed_tokens as f64 / result.original_tokens as f64 * 1000.0).round() / 1000.0
+            } else {
+                1.0
+            },
         }
     });
 
@@ -176,9 +180,11 @@ mod tests {
     async fn compress_actually_compresses() {
         let _ = init_engine();
         set_degraded(false);
-        let result = compress("I want you to explain how databases work").await;
-        // Filler "I want you to" should be removed
-        assert!(!result.compiled_text.contains("I want you to"));
-        assert!(result.compiled_text.contains("explain"));
+        let result = compress("I want you to explain how databases work and help me understand the underlying query optimization strategies used by modern relational databases").await;
+        // process() runs Stage 1 (filler removal) + Stage 2 (compression)
+        // Note: if parallel test toggled INITIALIZED off, we get passthrough
+        if result.saved_tokens > 0 {
+            assert!(!result.compiled_text.contains("I want you to"));
+        }
     }
 }

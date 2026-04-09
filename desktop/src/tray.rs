@@ -28,7 +28,7 @@ pub fn setup_tray(app: &tauri::App) -> Result<tauri::tray::TrayIcon, Box<dyn std
     let menu = Menu::with_items(
         app,
         &[
-            &MenuItemBuilder::new("AlienTalk").enabled(false).build(app)?,
+            &MenuItemBuilder::new("Sharp").enabled(false).build(app)?,
             &MenuItemBuilder::new(status).enabled(false).build(app)?,
             &MenuItemBuilder::new(&stats_label).enabled(false).build(app)?,
             &PredefinedMenuItem::separator(app)?,
@@ -42,7 +42,7 @@ pub fn setup_tray(app: &tauri::App) -> Result<tauri::tray::TrayIcon, Box<dyn std
 
     let tray = TrayIconBuilder::new()
         .menu(&menu)
-        .tooltip("AlienTalk — Prompt Intelligence")
+        .tooltip("Sharp — Prompt Optimizer")
         .on_menu_event(|app, event| {
             match event.id().as_ref() {
                 "quit" => {

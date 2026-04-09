@@ -3,7 +3,6 @@
 mod bridge;
 mod config;
 mod context;
-mod engine;
 mod onboarding;
 mod pipeline;
 mod queue;
@@ -14,11 +13,11 @@ use tauri::Manager;
 use tracing_subscriber::{fmt, EnvFilter};
 
 fn main() {
-    // Structured logging to ~/.alientalk/daemon.log
+    // Structured logging to ~/.sharp/daemon.log
     // No prompt text in logs (redacted)
     let log_dir = dirs::home_dir()
         .expect("home dir")
-        .join(".alientalk");
+        .join(".sharp");
     std::fs::create_dir_all(&log_dir).ok();
 
     let log_file = std::fs::OpenOptions::new()
@@ -28,7 +27,7 @@ fn main() {
         .expect("open log file");
 
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("alientalk_daemon=info"));
+        .unwrap_or_else(|_| EnvFilter::new("sharp_desktop=info"));
 
     fmt()
         .with_env_filter(filter)
@@ -36,16 +35,16 @@ fn main() {
         .json()
         .init();
 
-    tracing::info!("AlienTalk daemon starting");
+    tracing::info!("Sharp daemon starting");
 
     tauri::Builder::default()
         .setup(|app| {
-            // Initialize Rust compression engine (warms regex lazy statics)
+            // Initialize Sharp engine (warms regex lazy statics)
             if let Err(e) = bridge::init_engine() {
                 tracing::error!(error = %e, "Engine init failed — entering degraded mode");
                 bridge::set_degraded(true);
             } else {
-                tracing::info!("Rust compression engine ready");
+                tracing::info!("Sharp engine ready");
             }
 
             // System tray setup — must store handle to keep tray alive
@@ -58,7 +57,7 @@ fn main() {
                 onboarding::open_onboarding_window(&handle);
             }
 
-            // Start compression pipeline
+            // Start optimization pipeline
             let _app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 pipeline::run(_app_handle).await;
@@ -75,5 +74,5 @@ fn main() {
             onboarding::test_compress,
         ])
         .run(tauri::generate_context!())
-        .expect("error running AlienTalk daemon");
+        .expect("error running Sharp daemon");
 }

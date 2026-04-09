@@ -1,6 +1,6 @@
 //! Stats tracker — persists cumulative compression statistics.
 //!
-//! Stored at ~/.alientalk/stats.json. Updated after every successful
+//! Stored at ~/.sharp/stats.json. Updated after every successful
 //! compression. Exposed via Tauri command for the stats popover.
 
 use std::path::PathBuf;
@@ -59,7 +59,7 @@ impl Stats {
     fn path() -> PathBuf {
         dirs::home_dir()
             .expect("home dir")
-            .join(".alientalk")
+            .join(".sharp")
             .join("stats.json")
     }
 
