@@ -6,6 +6,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::onboarding::OnboardingState;
+
 /// User-configurable settings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -19,6 +21,9 @@ pub struct Config {
     pub enable_everywhere: bool,
     /// Whether to show toast notifications.
     pub show_toasts: bool,
+    /// Onboarding flow state.
+    #[serde(default)]
+    pub onboarding_state: OnboardingState,
 }
 
 impl Default for Config {
@@ -35,6 +40,7 @@ impl Default for Config {
             ],
             enable_everywhere: false,
             show_toasts: true,
+            onboarding_state: OnboardingState::default(),
         }
     }
 }
