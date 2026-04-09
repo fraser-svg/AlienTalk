@@ -1,16 +1,16 @@
 # 👽 AlienTalk
 
-**Cut your AI API bill by 15–48%. One import line. No code changes.**
+**Make every AI interaction faster. One import line. No code changes.**
 
-AlienTalk sits between your app and the AI model. Every prompt your app sends gets automatically compressed before it hits the API — fewer tokens in, same results out, lower bill.
+AlienTalk sits between your app and the AI model. Every prompt gets automatically compressed before it reaches the API, so the model starts responding sooner and you fit more into context windows and rate limits.
 
 ```python
-# Before: you're paying for every word
+# Before
 from anthropic import Anthropic
 client = Anthropic()
 
-# After: swap one line, save 15-48% on input tokens
-from integrations.sdk_wrapper import AlienTalkClient
+# After: swap one line, faster responses
+from engine.integrations.sdk_wrapper import AlienTalkClient
 client = AlienTalkClient()
 
 # Everything else stays the same. Your app doesn't change.
@@ -18,13 +18,14 @@ client = AlienTalkClient()
 
 ## Who This Is For
 
-You're building something that calls Claude or GPT — a chatbot, an agent, a pipeline, a batch processor. You're sending thousands of prompts. Your API bill is growing.
+You're building something that calls Claude or GPT, a chatbot, an agent, a pipeline, a batch processor. You're sending thousands of prompts. You want faster responses and better throughput.
 
-AlienTalk plugs into your code and compresses every prompt before it reaches the model. The AI still gets the same instructions. You just pay less.
+AlienTalk plugs into your code and compresses every prompt before it reaches the model. The AI still gets the same instructions. Responses come back faster.
 
-AlienTalk works two ways:
-- **API users** — save money. Fewer input tokens = lower bill.
-- **Subscription users** (Claude MAX, Codex) — faster responses and extended usage caps. Shorter prompts mean faster time-to-first-token and more messages within rate limits.
+AlienTalk works three ways:
+- **Python library** — Drop-in SDK wrapper, API proxy, CLI pipe, batch processing
+- **macOS daemon** (new) — System-wide prompt compression via menu bar app. Global hotkey compresses text in any app via Accessibility API.
+- **Chrome extension** (new) — One-click "Optimize" button on claude.ai, chatgpt.com, gemini.google.com
 
 ## How It Works
 
@@ -64,7 +65,7 @@ Python 3.9+. No dependencies. Optional `pip install tiktoken` for more accurate 
 Swap your import. Everything else stays the same.
 
 ```python
-from integrations.sdk_wrapper import AlienTalkClient
+from engine.integrations.sdk_wrapper import AlienTalkClient
 
 client = AlienTalkClient(verbose=True)
 
@@ -84,7 +85,7 @@ Don't use Python? Run the proxy. It sits between your app and Anthropic's API. C
 
 ```bash
 # Terminal 1: start the proxy
-python integrations/proxy.py --verbose
+python engine/integrations/proxy.py --verbose
 
 # Terminal 2: tell your app to use it
 export ANTHROPIC_BASE_URL=http://127.0.0.1:8080
@@ -94,17 +95,17 @@ export ANTHROPIC_BASE_URL=http://127.0.0.1:8080
 
 ### Terminal REPL (Subscription Users)
 
-Use AlienTalk with Claude MAX, Codex, or any CLI — no API key needed.
+Use AlienTalk with Claude MAX, Codex, or any CLI, no API key needed.
 
 ```bash
 # Start a compressed chat session (uses claude by default)
-python integrations/repl.py
+python engine/integrations/repl.py
 
 # Use with Codex
-python integrations/repl.py --backend codex
+python engine/integrations/repl.py --backend codex
 
 # Heavier compression with AlchemistPrime
-python integrations/repl.py --prime
+python engine/integrations/repl.py --prime
 ```
 
 You type normally. Every message is compressed before it reaches the LLM. Responses come back unmodified. Conversation continuity uses `--continue`, which resumes the last Claude session (parallel Claude sessions may interfere).
@@ -114,7 +115,7 @@ You type normally. Every message is compressed before it reaches the LLM. Respon
 Compress a single prompt and pipe it to any CLI tool.
 
 ```bash
-echo "Your verbose prompt" | ./integrations/pipe.sh | claude
+echo "Your verbose prompt" | ./engine/integrations/pipe.sh | claude
 ```
 
 ### Direct (Batch Processing)
@@ -122,7 +123,7 @@ echo "Your verbose prompt" | ./integrations/pipe.sh | claude
 Compress prompts in bulk before sending them yourself.
 
 ```python
-from alchemist import PromptCompiler
+from engine.alchemist import PromptCompiler
 
 compiler = PromptCompiler()
 
@@ -134,6 +135,30 @@ compressed = [compiler.compile(p) for p in prompts]
 stats = compiler.estimate_savings(prompts[0])
 print(f"Saved {stats['percentage_saved']}%")
 ```
+
+## macOS Daemon (Preview)
+
+A Tauri v2 menu bar app that compresses prompts system-wide. Runs as a background daemon with a system tray icon.
+
+**What it does:** Global hotkey (Cmd+Shift+Enter) reads text from any focused input, compresses it through the Python engine, and writes it back. Context-aware: lighter compression in code editors, full compression in chat interfaces, blocks password managers and banking apps.
+
+**Status:** Architecture complete, pipeline tested (24 Rust unit tests). Python bridge is scaffolding, needs `tauri-plugin-python` wiring. See `daemon/` for source.
+
+**Prerequisites:** Rust 1.85+, Tauri CLI v2, Python 3.9+ dev headers, macOS 12+.
+
+```bash
+cd daemon && cargo build
+```
+
+## Chrome Extension (Preview)
+
+MV3 extension that adds an "Optimize" button to claude.ai, chatgpt.com, and gemini.google.com.
+
+**What it does:** One click compresses your prompt in-place. Shows savings percentage. Communicates with the daemon via Chrome Native Messaging.
+
+**Status:** Content script with ProseMirror-safe write-back, SPA navigation handling, focus tracking. Needs daemon running for actual compression.
+
+Load unpacked from `extension/` in `chrome://extensions`.
 
 ## What Gets Compressed
 
@@ -175,7 +200,7 @@ Tested with actual Claude Sonnet API calls. Not simulated.
 - **History Compression** — Repeated constraints across messages get deduped. "Follow PEP 8" said three times becomes one.
 
 ```python
-from alchemist_prime import AlchemistPrime
+from engine.alchemist_prime import AlchemistPrime
 
 prime = AlchemistPrime()
 compressed = prime.compile("Your prompt with code blocks...")
@@ -185,12 +210,16 @@ compressed_history = prime.compress_history(conversation_messages)
 ## Tests
 
 ```bash
-python test_alchemist.py                                         # Basic tests
-python tests/stress_test.py                                      # 32 safety tests
-python tests/test_prime.py                                       # Prime features
-python tests/test_repl.py                                        # REPL unit tests
-python tests/test_prime_thorough.py                              # 125 thorough tests
-ANTHROPIC_API_KEY=sk-... python tests/test_prime_thorough.py --live  # Real API tests
+# Python engine
+python engine/test_alchemist.py                                         # Basic tests
+python engine/tests/stress_test.py                                      # 32 safety tests
+python engine/tests/test_prime.py                                       # Prime features
+python engine/tests/test_repl.py                                        # REPL unit tests
+python engine/tests/test_prime_thorough.py                              # 125 thorough tests
+ANTHROPIC_API_KEY=sk-... python engine/tests/test_prime_thorough.py --live  # Real API tests
+
+# Rust daemon
+cd daemon && cargo test                                                 # 24 unit tests
 ```
 
 ## License
