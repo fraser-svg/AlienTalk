@@ -118,7 +118,7 @@ mod tests {
         // NOTE: This test shares global INITIALIZED/DEGRADED flags with bridge tests.
         // If it fails intermittently, add serial_test::serial.
         bridge::set_degraded(false);
-        let _ = bridge::init_python_engine();
+        let _ = bridge::init_engine();
 
         let req = CompressionRequest::new(
             "Please provide a detailed explanation of authentication".to_string(),
@@ -126,11 +126,10 @@ mod tests {
         );
         let result = process(req).await;
         // Result may be None if a parallel test toggled INITIALIZED off.
-        // When the bridge is initialized, we should get Some with the original text
-        // (placeholder bridge returns passthrough).
+        // The Rust engine actually compresses this input (removes filler words).
         if let Some(r) = result {
-            assert_eq!(r.savings_pct, 0.0);
-            assert!(r.is_passthrough);
+            assert!(r.savings_pct > 0.0, "Engine should compress filler-heavy input");
+            assert!(!r.is_passthrough);
         }
     }
 }

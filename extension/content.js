@@ -19,6 +19,9 @@ const undoMap = new WeakMap();
 /** Compression in progress flag (debounce guard). */
 let isCompressing = false;
 
+/** Diff view threshold — show diff for the first N compressions. */
+const DIFF_VIEW_THRESHOLD = 50;
+
 /** Track editable element focus. */
 document.addEventListener("focusin", (e) => {
   const t = e.target;
@@ -71,7 +74,7 @@ function humanError(errorCode) {
     case "timeout":
       return "Optimization timed out. Try a shorter prompt.";
     default:
-      return `Error: ${errorCode}`;
+      return "An unexpected error occurred. Check the AlienTalk daemon.";
   }
 }
 
@@ -245,6 +248,39 @@ function performUndo(targetEl) {
 }
 
 /**
+ * Apply compressed text to the target element, update UI state.
+ * Extracted so both diff-view "Apply" and auto-apply paths share logic.
+ * @param {HTMLElement} targetEl
+ * @param {string} originalText
+ * @param {string} compressedText
+ * @param {number} savingsPct
+ * @param {HTMLButtonElement} [btn]
+ */
+function applyCompression(targetEl, originalText, compressedText, savingsPct, btn) {
+  undoMap.set(targetEl, originalText);
+
+  const wrote = writeText(targetEl, compressedText);
+  if (!wrote) {
+    copyToClipboard(compressedText);
+  } else if (savingsPct > 0) {
+    showNotification(null, savingsPct, true, targetEl);
+  } else {
+    showNotification("Nothing to optimize (already efficient)");
+  }
+
+  if (btn) {
+    if (savingsPct > 0) {
+      btn.textContent = `${savingsPct.toFixed(0)}%`;
+      btn.classList.add("alientalk-btn--saved");
+    } else {
+      btn.textContent = "Optimize";
+    }
+  }
+
+  targetEl.focus();
+}
+
+/**
  * Core optimization logic shared by button click and hotkey.
  * @param {HTMLElement} targetEl - The element to optimize
  * @param {HTMLButtonElement} [btn] - The button element to update state on
@@ -280,30 +316,38 @@ async function optimizeElement(targetEl, btn) {
     }
 
     if (response.compressed) {
-      // Store original text for undo
-      undoMap.set(targetEl, text);
+      // Check compression count to decide: diff view or auto-apply
+      const storage = await chrome.storage.local.get({ compressionCount: 0 });
+      const count = storage.compressionCount;
 
-      const wrote = writeText(targetEl, response.compressed);
-      if (!wrote) {
-        await copyToClipboard(response.compressed);
-      } else if (response.savings_pct > 0) {
-        showNotification(null, response.savings_pct, true, targetEl);
+      if (count < DIFF_VIEW_THRESHOLD) {
+        // Show diff view for early compressions to build trust.
+        // Keep isCompressing=true until diff is dismissed to prevent double-fire.
+        const diffOps = computeDiff(text, response.compressed);
+
+        showDiffView(
+          diffOps,
+          response.savings_pct || 0,
+          /* onApply */ () => {
+            applyCompression(targetEl, text, response.compressed, response.savings_pct, btn);
+            chrome.storage.local.set({ compressionCount: count + 1 });
+            isCompressing = false;
+          },
+          /* onCancel */ () => {
+            if (btn) {
+              btn.textContent = "Optimize";
+            }
+            targetEl.focus();
+            isCompressing = false;
+          }
+        );
+        // Skip the finally block's isCompressing=false when showing diff
+        return;
       } else {
-        showNotification("Nothing to optimize (already efficient)");
+        // Auto-apply after threshold reached
+        applyCompression(targetEl, text, response.compressed, response.savings_pct, btn);
+        chrome.storage.local.set({ compressionCount: count + 1 });
       }
-
-      // Update button with savings badge
-      if (btn) {
-        if (response.savings_pct > 0) {
-          btn.textContent = `${response.savings_pct.toFixed(0)}%`;
-          btn.classList.add("alientalk-btn--saved");
-        } else {
-          btn.textContent = "Optimize";
-        }
-      }
-
-      // Return focus to the text field
-      targetEl.focus();
     }
   } catch (err) {
     showNotification("Compression failed");

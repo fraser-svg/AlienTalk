@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "description": "Optimize every AI prompt automatically. Faster responses, better context efficiency.",
   "permissions": [
-    "nativeMessaging"
+    "nativeMessaging",
+    "storage"
   ],
   "host_permissions": [
     "https://claude.ai/*",
@@ -21,7 +22,7 @@
         "https://chatgpt.com/*",
         "https://gemini.google.com/*"
       ],
-      "js": ["content.js"],
+      "js": ["diff.js", "diff-ui.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

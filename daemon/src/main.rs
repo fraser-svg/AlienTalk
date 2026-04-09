@@ -3,6 +3,8 @@
 mod bridge;
 mod config;
 mod context;
+mod engine;
+mod onboarding;
 mod pipeline;
 mod queue;
 mod stats;
@@ -37,19 +39,24 @@ fn main() {
     tracing::info!("AlienTalk daemon starting");
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_python::init())
         .setup(|app| {
-            // Eager Python init — warm before first user request
-            if let Err(e) = bridge::init_python_engine() {
-                tracing::error!(error = %e, "Python engine init failed — entering degraded mode");
+            // Initialize Rust compression engine (warms regex lazy statics)
+            if let Err(e) = bridge::init_engine() {
+                tracing::error!(error = %e, "Engine init failed — entering degraded mode");
                 bridge::set_degraded(true);
             } else {
-                tracing::info!("Python engine initialized (eager)");
+                tracing::info!("Rust compression engine ready");
             }
 
             // System tray setup — must store handle to keep tray alive
             let tray = tray::setup_tray(app)?;
             app.manage(tray);
+
+            // Show onboarding on first launch
+            if onboarding::should_show_onboarding() {
+                let handle = app.handle().clone();
+                onboarding::open_onboarding_window(&handle);
+            }
 
             // Start compression pipeline
             let _app_handle = app.handle().clone();
@@ -63,6 +70,9 @@ fn main() {
             stats::get_stats,
             config::get_config,
             config::set_config,
+            onboarding::mark_onboarding_complete,
+            onboarding::mark_onboarding_skipped,
+            onboarding::test_compress,
         ])
         .run(tauri::generate_context!())
         .expect("error running AlienTalk daemon");

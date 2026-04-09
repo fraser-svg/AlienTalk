@@ -6,6 +6,7 @@ use tauri::{
 };
 
 use crate::bridge;
+use crate::onboarding;
 use crate::stats::Stats;
 
 /// Set up the system tray icon and menu.
@@ -31,6 +32,7 @@ pub fn setup_tray(app: &tauri::App) -> Result<tauri::tray::TrayIcon, Box<dyn std
             &MenuItemBuilder::new(status).enabled(false).build(app)?,
             &MenuItemBuilder::new(&stats_label).enabled(false).build(app)?,
             &PredefinedMenuItem::separator(app)?,
+            &MenuItemBuilder::with_id("setup", "Run Setup Again...").build(app)?,
             &MenuItemBuilder::with_id("settings", "Settings...").build(app)?,
             &MenuItemBuilder::with_id("quit", "Quit")
                 .accelerator("CmdOrCtrl+Q")
@@ -46,6 +48,10 @@ pub fn setup_tray(app: &tauri::App) -> Result<tauri::tray::TrayIcon, Box<dyn std
                 "quit" => {
                     tracing::info!("Quit requested from tray");
                     app.exit(0);
+                }
+                "setup" => {
+                    tracing::info!("Setup requested from tray");
+                    onboarding::open_onboarding_window(app);
                 }
                 "settings" => {
                     tracing::info!("Settings requested from tray");
