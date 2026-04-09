@@ -37,24 +37,63 @@
     }
     .status--active { color: #4ecca3; }
     .status--offline { color: #e74c3c; }
+    .onboarding {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #16213e;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+    }
+    .onboarding-title {
+      color: #4ecca3;
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .shortcut {
+      margin-top: 10px;
+      padding: 6px 0;
+      font-size: 11px;
+      color: #999;
+      text-align: center;
+    }
+    kbd {
+      background: #16213e;
+      border: 1px solid #333;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 11px;
+      font-family: -apple-system, monospace;
+    }
   </style>
 </head>
 <body>
   <h1>AlienTalk</h1>
-  <div class="stat">
-    <span>Compressions</span>
-    <span class="stat-value" id="total">-</span>
-  </div>
-  <div class="stat">
-    <span>Tokens saved</span>
-    <span class="stat-value" id="saved">-</span>
-  </div>
-  <div class="stat">
-    <span>Avg savings</span>
-    <span class="stat-value" id="avg">-</span>
+  <div id="stats-section">
+    <div class="stat">
+      <span>Compressions</span>
+      <span class="stat-value" id="total">-</span>
+    </div>
+    <div class="stat">
+      <span>Tokens saved</span>
+      <span class="stat-value" id="saved">-</span>
+    </div>
+    <div class="stat">
+      <span>Avg savings</span>
+      <span class="stat-value" id="avg">-</span>
+    </div>
   </div>
   <div class="status status--active" id="status">
     Connecting to daemon...
+  </div>
+  <div class="onboarding" id="onboarding" style="display: none;">
+    <div class="onboarding-title">Get started</div>
+    Install the AlienTalk daemon to enable prompt optimization.
+  </div>
+  <div class="shortcut">
+    Shortcut: <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>
   </div>
   <script src="popup.js"></script>
 </body>

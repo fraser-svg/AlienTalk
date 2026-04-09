@@ -11,13 +11,18 @@ Semantic prompt compression for AI. Python library + macOS daemon + Chrome exten
 ## Build & test
 
 ```bash
-# Python engine
-python engine/test_alchemist.py
+# Python engine (run from engine/ directory)
+cd engine && python test_alchemist.py
+python -m pytest tests/test_spell.py -v
 
 # Rust daemon
 cd daemon && cargo test
 
+# MCP server
+python -m engine.integrations.mcp_server
+
 # Extension: load unpacked from extension/ in chrome://extensions
+# Hotkey: Cmd+Shift+Enter (macOS) / Ctrl+Shift+Enter
 ```
 
 ## Skill routing

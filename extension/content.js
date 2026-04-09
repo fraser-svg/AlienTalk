@@ -13,6 +13,12 @@
  *  doesn't lose track of the text field. */
 let lastEditableEl = null;
 
+/** Undo state: stores original text per element for one-step undo. */
+const undoMap = new WeakMap();
+
+/** Compression in progress flag (debounce guard). */
+let isCompressing = false;
+
 /** Track editable element focus. */
 document.addEventListener("focusin", (e) => {
   const t = e.target;
@@ -32,6 +38,41 @@ function getSiteName() {
   if (host === "chatgpt.com" || host.endsWith(".chatgpt.com")) return "chatgpt";
   if (host === "gemini.google.com" || host.endsWith(".gemini.google.com")) return "gemini";
   return null;
+}
+
+/**
+ * Get site-specific button position offsets.
+ * @param {string} site
+ * @returns {{bottom: string, right: string}}
+ */
+function getButtonPosition(site) {
+  switch (site) {
+    case "chatgpt":
+      return { bottom: "100px", right: "80px" };
+    case "gemini":
+      return { bottom: "90px", right: "30px" };
+    case "claude":
+    default:
+      return { bottom: "80px", right: "20px" };
+  }
+}
+
+/**
+ * Map daemon error codes to human-readable messages.
+ * @param {string} errorCode
+ * @returns {string}
+ */
+function humanError(errorCode) {
+  switch (errorCode) {
+    case "daemon_disconnected":
+      return "AlienTalk daemon is offline. Check the menu bar icon.";
+    case "native_host_unavailable":
+      return "AlienTalk daemon not found. Install it from the popup menu.";
+    case "timeout":
+      return "Optimization timed out. Try a shorter prompt.";
+    default:
+      return `Error: ${errorCode}`;
+  }
 }
 
 /**
@@ -155,19 +196,127 @@ async function copyToClipboard(text) {
  * Show a brief notification near the active element.
  * @param {string} message
  * @param {number} [savingsPct]
+ * @param {boolean} [showUndo] - Show undo link in the notification
  */
-function showNotification(message, savingsPct) {
+function showNotification(message, savingsPct, showUndo = false, undoTarget = null) {
   const existing = document.querySelector(".alientalk-notification");
   if (existing) existing.remove();
 
   const el = document.createElement("div");
   el.className = "alientalk-notification";
-  el.textContent = savingsPct != null
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
+
+  const textSpan = document.createElement("span");
+  textSpan.textContent = savingsPct != null
     ? `${savingsPct.toFixed(0)}% faster response`
     : message;
-  document.body.appendChild(el);
+  el.appendChild(textSpan);
 
-  setTimeout(() => el.remove(), 3000);
+  if (showUndo && undoTarget) {
+    const undoLink = document.createElement("button");
+    undoLink.className = "alientalk-undo";
+    undoLink.textContent = "Undo";
+    undoLink.setAttribute("aria-label", "Undo optimization");
+    undoLink.addEventListener("click", (e) => {
+      e.stopPropagation();
+      performUndo(undoTarget);
+      el.remove();
+    });
+    el.appendChild(undoLink);
+  }
+
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), showUndo ? 6000 : 3000);
+}
+
+/**
+ * Undo optimization on the specified element.
+ * @param {HTMLElement} targetEl - The element to restore
+ */
+function performUndo(targetEl) {
+  if (!targetEl) return;
+  const original = undoMap.get(targetEl);
+  if (!original) return;
+  writeText(targetEl, original);
+  undoMap.delete(targetEl);
+  targetEl.focus();
+  showNotification("Restored original text");
+}
+
+/**
+ * Core optimization logic shared by button click and hotkey.
+ * @param {HTMLElement} targetEl - The element to optimize
+ * @param {HTMLButtonElement} [btn] - The button element to update state on
+ */
+async function optimizeElement(targetEl, btn) {
+  if (isCompressing) return;
+
+  const text = readText(targetEl);
+  if (!text.trim()) {
+    showNotification("Nothing to optimize");
+    return;
+  }
+
+  isCompressing = true;
+  if (btn) {
+    btn.textContent = "...";
+    btn.disabled = true;
+  }
+
+  try {
+    // Strip query params from URL before sending (privacy: no session tokens)
+    const cleanUrl = location.origin;
+
+    const response = await chrome.runtime.sendMessage({
+      action: "compress",
+      text,
+      url: cleanUrl,
+    });
+
+    if (response.error) {
+      showNotification(humanError(response.error));
+      return;
+    }
+
+    if (response.compressed) {
+      // Store original text for undo
+      undoMap.set(targetEl, text);
+
+      const wrote = writeText(targetEl, response.compressed);
+      if (!wrote) {
+        await copyToClipboard(response.compressed);
+      } else if (response.savings_pct > 0) {
+        showNotification(null, response.savings_pct, true, targetEl);
+      } else {
+        showNotification("Nothing to optimize (already efficient)");
+      }
+
+      // Update button with savings badge
+      if (btn) {
+        if (response.savings_pct > 0) {
+          btn.textContent = `${response.savings_pct.toFixed(0)}%`;
+          btn.classList.add("alientalk-btn--saved");
+        } else {
+          btn.textContent = "Optimize";
+        }
+      }
+
+      // Return focus to the text field
+      targetEl.focus();
+    }
+  } catch (err) {
+    showNotification("Compression failed");
+    console.error("[AlienTalk]", err);
+  } finally {
+    isCompressing = false;
+    if (btn) {
+      btn.disabled = false;
+      if (btn.textContent === "...") {
+        btn.textContent = "Optimize";
+      }
+    }
+  }
 }
 
 /** Create and inject the optimize button into document.body. */
@@ -176,78 +325,30 @@ function injectButton() {
   const existing = document.querySelector(".alientalk-btn");
   if (existing) existing.remove();
 
+  const site = getSiteName();
+  const pos = getButtonPosition(site);
+
   const btn = document.createElement("button");
   btn.className = "alientalk-btn";
   btn.textContent = "Optimize";
-  btn.title = "AlienTalk — Compress this prompt";
+  btn.title = "AlienTalk — Compress this prompt (Cmd+Shift+Enter)";
+  btn.setAttribute("aria-label", "AlienTalk: Optimize prompt");
+  btn.style.bottom = pos.bottom;
+  btn.style.right = pos.right;
 
   btn.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // Use last-focused editable element, not document.activeElement
-    // (clicking the button steals focus from the text field).
     const targetEl = lastEditableEl;
     if (!targetEl) {
       showNotification("No focused text field");
       return;
     }
 
-    const text = readText(targetEl);
-    if (!text.trim()) {
-      showNotification("Nothing to optimize");
-      return;
-    }
-
-    // Show loading state
-    btn.textContent = "...";
-    btn.disabled = true;
-
-    try {
-      // Strip query params from URL before sending (privacy: no session tokens)
-      const cleanUrl = location.origin + location.pathname;
-
-      const response = await chrome.runtime.sendMessage({
-        action: "compress",
-        text,
-        url: cleanUrl,
-      });
-
-      if (response.error) {
-        showNotification(`Error: ${response.error}`);
-        return;
-      }
-
-      if (response.compressed) {
-        const wrote = writeText(targetEl, response.compressed);
-        if (!wrote) {
-          await copyToClipboard(response.compressed);
-        } else if (response.savings_pct > 0) {
-          showNotification(null, response.savings_pct);
-        }
-
-        // Update button with savings badge
-        if (response.savings_pct > 0) {
-          btn.textContent = `${response.savings_pct.toFixed(0)}%`;
-          btn.classList.add("alientalk-btn--saved");
-        } else {
-          btn.textContent = "Optimize";
-        }
-      }
-    } catch (err) {
-      showNotification("Compression failed");
-      console.error("[AlienTalk]", err);
-    } finally {
-      btn.disabled = false;
-      // Reset button text on error (don't leave it stuck on "...")
-      if (btn.textContent === "...") {
-        btn.textContent = "Optimize";
-      }
-    }
+    await optimizeElement(targetEl, btn);
   });
 
-  // Button is position:fixed, so append to body (not inside input wrappers
-  // where it breaks flexbox layouts on target sites).
   document.body.appendChild(btn);
 }
 
@@ -290,6 +391,19 @@ function watchForInput() {
 
   observer.observe(document.body, { childList: true, subtree: true });
 }
+
+// Listen for hotkey trigger from background script
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === "hotkey_optimize") {
+    const targetEl = lastEditableEl;
+    if (!targetEl) {
+      showNotification("No focused text field");
+      return;
+    }
+    const btn = document.querySelector(".alientalk-btn");
+    optimizeElement(targetEl, btn);
+  }
+});
 
 // Initialize
 const site = getSiteName();
