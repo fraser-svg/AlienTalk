@@ -11,13 +11,13 @@ Two-stage prompt optimization for AI. Rust engine + macOS desktop + Chrome exten
 ## Build & test
 
 ```bash
-# Full workspace
+# Full workspace (105 tests)
 cargo test
 
 # Engine only (71 tests)
 cargo test -p sharp-engine
 
-# Desktop only (32 unit + 2 golden parity)
+# Desktop only (34 tests: 32 unit + 2 golden parity)
 cargo test -p sharp-desktop
 
 # Extension: load unpacked from extension/ in chrome://extensions
