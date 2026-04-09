@@ -38,6 +38,8 @@ All notable changes to Sharp will be documented in this file.
 - MutationObserver scoped to `subtree: false` + popstate/hashchange (was firing on every streamed AI token).
 - Blob URL `try/finally` guard prevents memory leak on WASM load failure.
 - `compute_logic_density` no longer allocates Vec for word count.
+
+### For contributors
 - Removed stale `regex` dep from desktop Cargo.toml.
 - Removed duplicate `serde_json` dev-dep from engine Cargo.toml.
 

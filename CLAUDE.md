@@ -6,7 +6,7 @@ Two-stage prompt optimization for AI. Rust engine + macOS desktop + Chrome exten
 
 - `engine/` — Pure Rust engine crate (`sharp-engine`): sharpen() + compress() pipeline, 71 tests
 - `desktop/` — Rust/Tauri v2 macOS menu bar daemon (`sharp-desktop`), depends on engine crate
-- `extension/` — Chrome MV3 extension (WASM engine, self-contained)
+- `extension/` — Chrome MV3 extension (WASM engine, self-contained, 6 site adapters, Stage 2 request interception)
 
 ## Build & test
 
