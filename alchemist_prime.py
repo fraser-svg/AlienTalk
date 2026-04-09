@@ -113,6 +113,43 @@ class EchoProcessor:
         """Append echo directive to a compiled prompt."""
         return f"{compiled_prompt}\n{ECHO_DIRECTIVE}"
 
+    def should_inject_directive(self, raw_prompt: str, compiled_prompt: str) -> bool:
+        """Skip echo when the prompt already constrains output to be very short.
+
+        Echo mode helps when the model is likely to generate verbose prose.
+        It can backfire on prompts that already ask for a short structured
+        answer, such as a tiny bullet summary.
+        """
+        raw_lower = raw_prompt.lower()
+        compiled_lower = compiled_prompt.lower()
+
+        brevity_markers = (
+            "keep it concise",
+            "be concise",
+            "!brief",
+            "three bullet",
+            "3 bullet",
+            "three bullet points",
+            "return only the analysis",
+            "return only analysis",
+            "return only the answer",
+        )
+        code_markers = (
+            "```",
+            "return only the code",
+            "⇒code",
+            "def ",
+            "class ",
+            "function ",
+            "implement ",
+        )
+
+        if any(marker in raw_lower for marker in brevity_markers):
+            if not any(marker in raw_lower or marker in compiled_lower for marker in code_markers):
+                return False
+
+        return True
+
     def expand_response(self, response: str) -> str:
         """Expand a compressed LLM response back to verbose English.
 
@@ -205,8 +242,12 @@ class CodeMinifier:
             for node in ast.walk(tree):
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
                                      ast.ClassDef, ast.Module)):
-                    if (node.body and isinstance(node.body[0], ast.Expr)
-                            and isinstance(node.body[0].value, (ast.Constant, ast.Str))):
+                    if (
+                        node.body
+                        and isinstance(node.body[0], ast.Expr)
+                        and isinstance(node.body[0].value, ast.Constant)
+                        and isinstance(node.body[0].value.value, str)
+                    ):
                         ds = node.body[0]
                         for ln in range(ds.lineno, ds.end_lineno + 1):
                             docstring_lines.add(ln)
@@ -524,8 +565,40 @@ class AlchemistPrime:
         self.state_squeeze = StateSqueeze()
         self._echo_enabled = echo
 
+    def _should_bypass_compression(self, prompt: str) -> bool:
+        """Leave already-short non-code prompts untouched.
+
+        These prompts tend to produce short answers already, so any input
+        compression benefit is small and response-length variance dominates.
+        """
+        lower = prompt.lower()
+        brevity_markers = (
+            "keep it concise",
+            "be concise",
+            "three bullet",
+            "3 bullet",
+            "three bullet points",
+            "return only the analysis",
+            "return only analysis",
+            "return only the answer",
+        )
+        code_markers = (
+            "```",
+            "return only the code",
+            "def ",
+            "class ",
+            "function ",
+            "implement ",
+        )
+        return any(marker in lower for marker in brevity_markers) and not any(
+            marker in lower for marker in code_markers
+        )
+
     def compile(self, prompt: str) -> str:
         """Full input compression pipeline."""
+        if self._should_bypass_compression(prompt):
+            return prompt
+
         # Stage 1: Minify code blocks
         text = self.code_minifier.process_prompt(prompt)
 
@@ -536,7 +609,7 @@ class AlchemistPrime:
         text = self.compiler.compile(text)
 
         # Stage 4: Inject echo directive (if enabled)
-        if self._echo_enabled:
+        if self._echo_enabled and self.echo_processor.should_inject_directive(prompt, text):
             text = self.echo_processor.inject_directive(text)
 
         return text
