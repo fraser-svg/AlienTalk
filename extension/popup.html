@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 280px;
+      padding: 16px;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+    }
+    h1 {
+      font-size: 16px;
+      margin: 0 0 12px 0;
+      color: #4ecca3;
+    }
+    .stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #16213e;
+      font-size: 13px;
+    }
+    .stat-value {
+      color: #4ecca3;
+      font-weight: 600;
+    }
+    .status {
+      margin-top: 12px;
+      padding: 8px;
+      border-radius: 8px;
+      background: #16213e;
+      text-align: center;
+      font-size: 12px;
+    }
+    .status--active { color: #4ecca3; }
+    .status--offline { color: #e74c3c; }
+  </style>
+</head>
+<body>
+  <h1>AlienTalk</h1>
+  <div class="stat">
+    <span>Compressions</span>
+    <span class="stat-value" id="total">-</span>
+  </div>
+  <div class="stat">
+    <span>Tokens saved</span>
+    <span class="stat-value" id="saved">-</span>
+  </div>
+  <div class="stat">
+    <span>Avg savings</span>
+    <span class="stat-value" id="avg">-</span>
+  </div>
+  <div class="status status--active" id="status">
+    Connecting to daemon...
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -16,9 +16,9 @@
 #
 # Install as alias (add to ~/.zshrc or ~/.bashrc):
 #
-#   export ALCHEMIST_HOME="/Users/prism/Mermaids/AlienTalk"
-#   alias alc='python3 $ALCHEMIST_HOME/alchemist.py --prompt'
-#   alias alcp='python3 $ALCHEMIST_HOME/alchemist_prime.py --prompt'
+#   export ALIENTALK_HOME="/path/to/alientalk/engine"
+#   alias alc='python3 $ALIENTALK_HOME/alchemist.py --prompt'
+#   alias alcp='python3 $ALIENTALK_HOME/alchemist_prime.py --prompt'
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
