@@ -1,6 +1,24 @@
 # AlienTalk
 
-Semantic prompt compression library for AI API calls.
+Semantic prompt compression for AI. Python library + macOS daemon + Chrome extension.
+
+## Project structure
+
+- `engine/` — Python compression engine (PromptCompiler, AlchemistPrime, integrations)
+- `daemon/` — Rust/Tauri v2 macOS menu bar daemon (24 tests, bridge is scaffolding)
+- `extension/` — Chrome MV3 extension (native messaging, ProseMirror write-back)
+
+## Build & test
+
+```bash
+# Python engine
+python engine/test_alchemist.py
+
+# Rust daemon
+cd daemon && cargo test
+
+# Extension: load unpacked from extension/ in chrome://extensions
+```
 
 ## Skill routing
 
