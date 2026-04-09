@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sharp Setup</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="onboarding">
+    <!-- Progress dots -->
+    <div class="progress">
+      <span class="dot active" data-step="1"></span>
+      <span class="dot" data-step="2"></span>
+      <span class="dot" data-step="3"></span>
+    </div>
+
+    <!-- Step 1: Welcome -->
+    <div class="step active" id="step-1">
+      <div class="icon">⚡</div>
+      <h1>Welcome to Sharp</h1>
+      <p class="subtitle">Two-stage prompt optimization — sharpen for clarity, compress for speed.</p>
+      <div class="info-card">
+        <div class="info-row">
+          <span class="info-icon">✏️</span>
+          <span>Stage 1: Sharpens prompts for human readability</span>
+        </div>
+        <div class="info-row">
+          <span class="info-icon">⚡</span>
+          <span>Stage 2: Compresses invisibly for faster AI responses</span>
+        </div>
+        <div class="info-row">
+          <span class="info-icon">⌨️</span>
+          <span>One hotkey: <kbd>Cmd+Shift+S</kbd></span>
+        </div>
+      </div>
+      <button class="btn primary" id="btn-start">Get Started</button>
+    </div>
+
+    <!-- Step 2: Extension Install -->
+    <div class="step" id="step-2">
+      <div class="icon">🧩</div>
+      <h1>Install the Extension</h1>
+      <p class="subtitle">The Chrome extension enables compression directly in ChatGPT, Claude, and other AI tools.</p>
+      <div class="info-card">
+        <h3>Load Unpacked (Developer Mode)</h3>
+        <ol class="install-steps">
+          <li>Open <code>chrome://extensions</code></li>
+          <li>Enable <strong>Developer mode</strong> (top right)</li>
+          <li>Click <strong>Load unpacked</strong></li>
+          <li>Select the <code>extension/</code> folder from Sharp</li>
+        </ol>
+      </div>
+      <div class="btn-row">
+        <button class="btn secondary" id="btn-back-1">Back</button>
+        <button class="btn primary" id="btn-next-2">Next</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Test Compress -->
+    <div class="step" id="step-3">
+      <div class="icon">🧪</div>
+      <h1>Try It Out</h1>
+      <p class="subtitle">Type a prompt below and see how Sharp optimizes it.</p>
+      <textarea id="test-input" placeholder="e.g. I want you to explain step by step how binary search works. Be concise and give examples." rows="3"></textarea>
+      <button class="btn secondary compress-btn" id="btn-compress">Compress</button>
+      <div id="result-area" class="result-area hidden">
+        <label>Compressed:</label>
+        <div id="result-text" class="result-text"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn secondary" id="btn-back-2">Back</button>
+        <button class="btn primary" id="btn-done">Done</button>
+      </div>
+    </div>
+
+    <!-- Skip link -->
+    <a href="#" class="skip-link" id="btn-skip">Skip Setup</a>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
