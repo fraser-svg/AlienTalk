@@ -2,6 +2,30 @@
 
 All notable changes to AlienTalk will be documented in this file.
 
+## [0.2.1.0] - 2026-04-09
+
+### Added
+- **Spell correction** — SymSpell-powered O(1) typo correction before compression. 650-word tech allowlist (kubectl, pytorch, terraform, etc.) prevents false corrections on technical terms. Prompt-domain word boosts ensure "analyze" beats "realize".
+- **Text normalization** — Sentence-initial capitalization, repeated punctuation collapse (!!!→!), ellipsis preservation, space-before-punctuation cleanup. Runs after spell correction, before compression.
+- **Hotkey** — Cmd+Shift+Enter (macOS) / Ctrl+Shift+Enter triggers prompt optimization from any supported site.
+- **Undo support** — One-click undo after optimization. Per-element undo state via WeakMap, element-scoped so switching fields doesn't cross-contaminate.
+- **MCP server** — `compile()` and `estimate_savings()` tools for Claude Code, Cursor, and other MCP-compatible IDEs. Zero install beyond the Python engine.
+- **Reconnection logic** — Extension auto-reconnects to daemon with exponential backoff (1s to 30s max).
+- **Onboarding state** — Extension popup shows "Get started" guidance when daemon is offline, stats at zero for first-time users.
+
+### Changed
+- Extension button position adapts per site (ChatGPT, Gemini, Claude) to avoid overlapping send buttons.
+- Daemon error codes mapped to human-readable messages in extension.
+- Added accessibility attributes (aria-label, aria-live, role="status") to all interactive extension elements.
+- Double-click guard prevents duplicate compression requests.
+- URL sent to daemon stripped to origin only (no pathname or query params).
+
+### Fixed
+- Ellipsis (...) no longer collapsed by repeated punctuation regex.
+- Reconnection backoff no longer resets prematurely on instant daemon disconnect.
+- Spell correction exception handling broadened to catch RuntimeError/OSError from SymSpell.
+- Undo now targets the correct element even after switching focus.
+
 ## [0.2.0.0] - 2026-04-09
 
 ### Added
