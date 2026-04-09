@@ -1,14 +1,13 @@
-//! PyO3 bridge — wraps tauri-plugin-python with timeout and degraded mode.
+//! Compression bridge — wraps the Rust engine with timeout and degraded mode.
 //!
-//! Architecture:
+//! Architecture (v0.3):
 //! ```text
-//! [Rust caller] → spawn_blocking(OS thread) → tauri-plugin-python → Python
+//! [Rust caller] → spawn_blocking(OS thread) → engine::compile() → result
 //!                      ↓ (200ms timeout)
 //!                 return original text
 //! ```
 //!
-//! The Python engine runs `estimate_savings()` which returns both
-//! compressed text and statistics in a single call.
+//! The Python/PyO3 bridge has been replaced with a pure Rust engine.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -16,19 +15,21 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tokio::time::timeout;
 
-/// Whether the Python engine is in degraded mode (init failed).
+use crate::engine;
+
+/// Whether the engine is in degraded mode.
 static DEGRADED: AtomicBool = AtomicBool::new(false);
 
-/// Whether the Python engine has been initialized.
+/// Whether the engine has been initialized.
 static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
-/// Timeout for each Python call.
-const PYTHON_TIMEOUT: Duration = Duration::from_millis(200);
+/// Timeout for each compression call.
+const ENGINE_TIMEOUT: Duration = Duration::from_millis(200);
 
 /// Maximum input size (bytes) before we skip compression.
 const MAX_INPUT_SIZE: usize = 64 * 1024; // 64 KB
 
-/// Result from the Python compression engine.
+/// Result from the compression engine (serializable for Tauri IPC).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EngineResult {
     pub compiled_text: String,
@@ -64,32 +65,21 @@ pub fn is_degraded() -> bool {
     DEGRADED.load(Ordering::SeqCst)
 }
 
-/// Initialize the Python engine eagerly at daemon startup.
+/// Initialize the Rust compression engine.
 ///
-/// Creates a persistent PromptCompiler instance that lives for the
-/// daemon's lifetime. Called once from main.rs setup.
-pub fn init_python_engine() -> Result<(), String> {
-    // TODO: Call tauri-plugin-python to initialize Python interpreter
-    // and create persistent PromptCompiler instance.
-    //
-    // Pseudocode:
-    //   python.run("from alchemist import PromptCompiler")
-    //   python.run("_compiler = PromptCompiler()")
-    //
-    // On failure: return Err with diagnostic message.
-    // On success: set INITIALIZED = true.
-
+/// Warms up lazy statics (regex compilation) so first request is fast.
+pub fn init_engine() -> Result<(), String> {
+    // Force lazy static initialization by running a trivial compilation
+    let _ = engine::compile("warmup");
     INITIALIZED.store(true, Ordering::SeqCst);
-    tracing::info!("Python engine initialized — PromptCompiler ready");
+    tracing::info!("Rust compression engine initialized");
     Ok(())
 }
 
-/// Compress text through the Python engine.
+/// Compress text through the Rust engine.
 ///
-/// Runs on a dedicated OS thread with a 200ms timeout. If the timeout
-/// fires, the Rust side moves on immediately. When Python eventually
-/// finishes, the result is checked against the current request ID —
-/// if stale, it's discarded by the caller.
+/// Runs on a dedicated OS thread with a 200ms timeout to avoid
+/// blocking the async runtime on large inputs.
 ///
 /// Returns `EngineResult::passthrough` on error, timeout, or degraded mode.
 pub async fn compress(text: &str) -> EngineResult {
@@ -110,58 +100,30 @@ pub async fn compress(text: &str) -> EngineResult {
 
     let text_owned = text.to_string();
 
-    // Spawn on a blocking OS thread (not the tokio runtime).
-    // This is critical: PyO3/GIL work must not block the async runtime.
+    // Spawn on a blocking OS thread (regex work can be CPU-heavy on large inputs).
     let handle = tokio::task::spawn_blocking(move || {
-        call_python_engine(&text_owned)
+        let result = engine::estimate_savings(&text_owned);
+        EngineResult {
+            compiled_text: result.compiled_text,
+            original_tokens: result.original_tokens,
+            compressed_tokens: result.compressed_tokens,
+            saved_tokens: result.saved_tokens,
+            percentage_saved: result.percentage_saved,
+            compression_ratio: result.compression_ratio,
+        }
     });
 
-    // Apply 200ms timeout
-    match timeout(PYTHON_TIMEOUT, handle).await {
-        Ok(Ok(Ok(result))) => result,
-        Ok(Ok(Err(e))) => {
-            tracing::error!(error = %e, "Python engine error — returning original");
-            EngineResult::passthrough(text)
-        }
+    match timeout(ENGINE_TIMEOUT, handle).await {
+        Ok(Ok(result)) => result,
         Ok(Err(e)) => {
             tracing::error!(error = %e, "spawn_blocking panicked — returning original");
             EngineResult::passthrough(text)
         }
         Err(_) => {
-            tracing::warn!("Python call timed out (>200ms) — returning original");
-            // The spawned task continues running but its result will be
-            // discarded via stale request ID check in the pipeline.
+            tracing::warn!("Engine call timed out (>200ms) — returning original");
             EngineResult::passthrough(text)
         }
     }
-}
-
-/// Actually call the Python engine via tauri-plugin-python.
-///
-/// This runs on a dedicated OS thread (via spawn_blocking).
-fn call_python_engine(text: &str) -> Result<EngineResult, String> {
-    // TODO: Wire up tauri-plugin-python call:
-    //   let result = python.call("_compiler.estimate_savings", [text])?;
-    //   Parse result dict into EngineResult.
-    //
-    // For now: use a placeholder that demonstrates the interface.
-
-    // Placeholder: approximate compression by word count reduction
-    let words: Vec<&str> = text.split_whitespace().collect();
-    let orig_tokens = words.len() as u64;
-    if orig_tokens == 0 {
-        return Ok(EngineResult::passthrough(text));
-    }
-
-    // TODO: Replace with actual Python call
-    Ok(EngineResult {
-        compiled_text: text.to_string(), // placeholder
-        original_tokens: orig_tokens,
-        compressed_tokens: orig_tokens,
-        saved_tokens: 0,
-        percentage_saved: 0.0,
-        compression_ratio: 1.0,
-    })
 }
 
 #[cfg(test)]
@@ -185,6 +147,12 @@ mod tests {
         set_degraded(false);
     }
 
+    #[test]
+    fn init_engine_succeeds() {
+        assert!(init_engine().is_ok());
+        assert!(INITIALIZED.load(Ordering::SeqCst));
+    }
+
     #[tokio::test]
     async fn compress_returns_passthrough_when_degraded() {
         set_degraded(true);
@@ -202,5 +170,15 @@ mod tests {
         assert_eq!(result.compiled_text, "test text");
         // Restore
         INITIALIZED.store(true, Ordering::SeqCst);
+    }
+
+    #[tokio::test]
+    async fn compress_actually_compresses() {
+        let _ = init_engine();
+        set_degraded(false);
+        let result = compress("I want you to explain how databases work").await;
+        // Filler "I want you to" should be removed
+        assert!(!result.compiled_text.contains("I want you to"));
+        assert!(result.compiled_text.contains("explain"));
     }
 }
